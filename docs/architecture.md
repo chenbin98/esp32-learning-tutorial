@@ -16,7 +16,7 @@
 - `examples/NN-name/main.py`：设备端程序；`case.json`：电脑端部署清单。
 - 案例 03 采用 MicroPython BLE peripheral/GATT server；手机用 nRF Connect 作 central/client，通过 FFF0/FFF1 的可写特征值发 on/off 指令。低层 BLE API 与固件 v1.29.0 配套。
 - 案例 04 采用 MicroPython 内置 DHT11 驱动，GPIO2 读取温湿度；ESP32 复用 Wi-Fi 配置并提供 `/api/readings` JSON 接口，浏览器每秒拉取缓存，设备约每 2.5 秒测量一次。
-- `projects/NN-name/` 保存完整综合项目，含独立 `main.py`、HTML 和 `project.json`；部署 ID 使用 `project-NN`，以免与 `examples/` 案例编号冲突。项目 01 复用案例 04 的 DHT11/Wi-Fi 网页，在 GPIO23 上按双阈值驱动 LED。
+- `projects/NN-name/` 保存完整综合项目，含独立 `main.py`、HTML 和 `project.json`；部署 ID 使用 `project-NN`，以免与 `examples/` 案例编号冲突。项目 01 复用案例 04 的 DHT11/Wi-Fi 网页，在自动模式按双阈值驱动 GPIO23 LED，也允许可信局域网内手动控制；控制接口沿用无认证的本地 HTTP 服务。
 - `config/`：个人配置；示例值留在公开的 `.example.py`。
 - `scripts/device.py`：按清单校验路径、检查本地文件、备份板上同名文件、临时上传、比对 SHA-256、替换并重启。必须明确指定端口；dry-run 不操作设备。
 - `scripts/package_tutorial.py`：公开文件范围打包，而非任意递归目录。

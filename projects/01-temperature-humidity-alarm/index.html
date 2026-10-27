@@ -11,8 +11,8 @@
 <main id="content"><article><div class="eyebrow">PRACTICAL PROJECT 01 / 温湿度报警</div>
 <h1>温湿度报警系统</h1><p class="lead">把案例 04 的 DHT11 网页监测，与 D23 报警灯组合成一个完整的 ESP32 项目。</p>
 <div class="meta"><span class="pill">DHT11</span><span class="pill">Wi-Fi / HTTP</span><span class="pill">报警 LED：D23</span><span class="pill">MicroPython 1.29.0</span></div>
-<section id="goal"><h2>项目目标</h2><p>ESP32 从 D2 / GPIO2 读取 DHT11 数据，通过局域网网页显示温度、相对湿度和报警状态。当温度<strong>大于</strong> 25°C 且湿度<strong>大于</strong> 60% RH 时，D23 / GPIO23 输出高电平点亮 LED；任一条件不成立时熄灭。</p>
-<div class="diagram"><div class="flow"><div class="node">DHT11<small>D2 / GPIO2</small></div><span class="arrow">→</span><div class="node">ESP32<small>采样 + AND 阈值判断</small></div><span class="arrow">→</span><div class="node">LED 报警<small>D23 / GPIO23</small></div></div><div class="caption">同时满足两个阈值才报警；网页显示当前读数、规则和 LED 状态。</div></div>
+<section id="goal"><h2>项目目标</h2><p>ESP32 从 D2 / GPIO2 读取 DHT11 数据，通过局域网网页显示温度、相对湿度和报警状态。当温度<strong>大于</strong> 25°C 且湿度<strong>大于</strong> 60% RH 时，自动模式下 D23 / GPIO23 输出高电平点亮 LED；任一条件不成立时熄灭。网页也可切换到手动模式，直接点亮或关闭 LED。</p>
+<div class="diagram"><div class="flow"><div class="node">DHT11<small>D2 / GPIO2</small></div><span class="arrow">→</span><div class="node">ESP32<small>采样 + AND 阈值判断</small></div><span class="arrow">→</span><div class="node">LED 报警<small>D23 / GPIO23</small></div></div><div class="caption">自动模式按双阈值报警；手动模式由网页开关 D23。网页分别显示报警条件与 LED 实际状态。</div></div>
 <p>先完成 <a href="../../examples/04-temperature-humidity/index.html">案例 04：网页温湿度监测</a>。本项目使用相同的 DHT11 与 Wi-Fi 配置，并独立运行一份完整程序。</p></section>
 <section id="wiring"><h2>接线</h2><div class="table-wrap"><table><thead><tr><th>部件</th><th>接法</th><th>说明</th></tr></thead><tbody>
 <tr><td>DHT11 VCC</td><td>ESP32 3V3</td><td>请确认手上模块支持 3.3V；模块/兼容件规格可能不同。</td></tr>
@@ -21,9 +21,9 @@
 <tr><td>报警 LED 正极</td><td>D23 / GPIO23 经 330 Ω 电阻连接</td><td>电阻串联限流。</td></tr>
 <tr><td>报警 LED 负极</td><td>GND</td><td>本接法高电平点亮。</td></tr>
 </tbody></table></div><div class="note amber"><strong>电压与接线</strong><p>如果 DHT11 模块不支持 3.3V，请按其说明供电，并确保 DATA 到 ESP32 GPIO 的电压不超过 3.3V。ESP32 GPIO 容忍上限为 3.6V；不要让模块的 5V 上拉直接进入 GPIO。D23 上的 LED 必须串联限流电阻。</p></div><p>若你的 LED 模块是低电平点亮，修改 <code>LED_ON_LEVEL</code> 和 <code>LED_OFF_LEVEL</code>。其他开发板需先确认 D23 对应 GPIO23。</p></section>
-<section id="logic"><h2>报警条件</h2><div class="table-wrap"><table><thead><tr><th>温度</th><th>湿度</th><th>报警灯</th></tr></thead><tbody>
+<section id="logic"><h2>报警条件和控制模式</h2><div class="table-wrap"><table><thead><tr><th>温度</th><th>湿度</th><th>自动模式下报警灯</th></tr></thead><tbody>
 <tr><td>≤ 25°C</td><td>任意有效值</td><td>熄灭</td></tr><tr><td>&gt; 25°C</td><td>≤ 60% RH</td><td>熄灭</td></tr><tr><td>&gt; 25°C</td><td>&gt; 60% RH</td><td>点亮</td></tr>
-</tbody></table></div><p>代码用逻辑 AND：<code>temperature &gt; 25 and humidity &gt; 60</code>。刚好等于 25°C 或 60% RH 不触发。</p><p>DHT11 每 2.5 秒采样一次，网页每秒读取缓存。传感器采样失败时保留最后一次有效报警灯状态，页面同时标记错误和数据年龄；首次成功读数前 LED 保持熄灭。</p></section>
+</tbody></table></div><p>自动模式代码用逻辑 AND：<code>temperature &gt; 25 and humidity &gt; 60</code>。刚好等于 25°C 或 60% RH 不触发。</p><p>网页的自动/手动模式互斥：手动模式下自动报警暂停，DHT11 仍继续采样；切回自动后立即按最近一次有效读数更新 LED。手动控制接口没有身份验证，只应在可信的本地 Wi-Fi 网络中使用。</p><p>DHT11 每 2.5 秒采样一次，网页每秒读取缓存。手动模式下采样继续更新读数，但不会覆盖手动灯状态；切回自动模式立即按最近一次有效读数重算。传感器采样失败时自动模式保留最后一次有效报警灯状态；首次有效读数前 LED 保持熄灭。</p></section>
 <section id="code"><h2>完整程序</h2><p>源码：<a href="main.py" download><code>projects/01-temperature-humidity-alarm/main.py</code></a>。设备程序使用 MicroPython 固件内置的 <code>dht</code> 模块，不需另装传感器包。</p>
 <pre data-copy><code class="language-python">&quot;&quot;&quot;实战项目 01：温湿度同时越界时点亮 D23 报警灯。&quot;&quot;&quot;
 import dht
@@ -53,6 +53,8 @@ latest = {
     &#x27;updated_ms&#x27;: None,
     &#x27;error&#x27;: &#x27;等待首次采样&#x27;,
 }
+control_mode = &#x27;auto&#x27;
+manual_led_on = False
 
 PAGE = &#x27;&#x27;&#x27;&lt;!doctype html&gt;
 &lt;html lang=&quot;zh-CN&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -69,6 +71,12 @@ box-shadow:0 18px 50px #18304a18}h1{margin:0 0 8px;font-size:clamp(25px,7vw,36px
 .label{font-size:14px;color:#64748b}.value{margin:7px 0;font-size:clamp(36px,9vw,50px);font-weight:700;color:#1769e0}
 .unit{font-size:15px;color:#64748b}.alarm{padding:18px;border-radius:16px;background:#edf2f7;text-align:center}
 .alarm.active{background:#fff1f0;color:#b42318}.alarm-title{font-size:21px;font-weight:700}
+.controls{margin:18px 0;padding:18px;border:1px solid #e2e8f0;border-radius:16px}
+.mode-row,.button-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+[hidden]{display:none!important}
+button{border:0;border-radius:10px;padding:11px 15px;background:#e5edf8;color:#20334c;font:inherit;font-weight:600;cursor:pointer}
+button.selected{background:#1769e0;color:#fff}button:disabled{opacity:.5;cursor:wait}
+.control-note{margin:12px 0 0;color:#64748b;font-size:13px}
 .status{min-height:24px;margin-top:14px;color:#52647c;font-size:14px}.status.error{color:#b42318}
 .rule{margin:16px 0 0;padding:14px;border-left:4px solid #1769e0;background:#f4f7fb;color:#40536d;font-size:14px}
 .foot{margin-top:18px;color:#94a3b8;font-size:12px}
@@ -81,38 +89,79 @@ box-shadow:0 18px 50px #18304a18}h1{margin:0 0 8px;font-size:clamp(25px,7vw,36px
 &lt;div class=&quot;value&quot; id=&quot;humidity&quot;&gt;--&lt;/div&gt;&lt;span class=&quot;unit&quot;&gt;% RH&lt;/span&gt;&lt;/section&gt;&lt;/div&gt;
 &lt;section class=&quot;alarm&quot; id=&quot;alarmBox&quot;&gt;&lt;div class=&quot;label&quot;&gt;报警灯状态&lt;/div&gt;
 &lt;div class=&quot;alarm-title&quot; id=&quot;alarmState&quot;&gt;等待传感器读数&lt;/div&gt;&lt;/section&gt;
+&lt;section class=&quot;controls&quot;&gt;&lt;strong&gt;LED 控制&lt;/strong&gt;&lt;div id=&quot;modeState&quot; class=&quot;control-note&quot;&gt;当前模式：自动&lt;/div&gt;
+&lt;div class=&quot;mode-row&quot;&gt;&lt;button type=&quot;button&quot; data-action=&quot;mode_auto&quot;&gt;自动模式&lt;/button&gt;
+&lt;button type=&quot;button&quot; data-action=&quot;mode_manual&quot;&gt;手动模式&lt;/button&gt;&lt;/div&gt;
+&lt;div id=&quot;manualControls&quot; class=&quot;button-row&quot; hidden&gt;
+&lt;button type=&quot;button&quot; data-action=&quot;led_on&quot;&gt;点亮 LED&lt;/button&gt;
+&lt;button type=&quot;button&quot; data-action=&quot;led_off&quot;&gt;关闭 LED&lt;/button&gt;&lt;/div&gt;
+&lt;p id=&quot;controlNote&quot; class=&quot;control-note&quot;&gt;自动模式按照温湿度阈值控制 LED。&lt;/p&gt;&lt;/section&gt;
 &lt;div class=&quot;status&quot; id=&quot;status&quot;&gt;正在读取传感器…&lt;/div&gt;
 &lt;p class=&quot;rule&quot;&gt;&lt;strong&gt;触发条件：&lt;/strong&gt;温度 &amp;gt; 25°C &lt;strong&gt;且&lt;/strong&gt;湿度 &amp;gt; 60% RH；两个条件必须同时满足。&lt;/p&gt;
-&lt;p class=&quot;foot&quot;&gt;浏览器每秒刷新；DHT11 每 2.5 秒采样。读数异常时保留上次有效灯状态并标记数据陈旧。&lt;/p&gt;
+&lt;p class=&quot;foot&quot;&gt;浏览器每秒刷新；DHT11 每 2.5 秒采样。自动模式读数异常时保留上次有效灯状态；手动模式仍由网页控制。&lt;/p&gt;
 &lt;/main&gt;&lt;script&gt;
 const temperature=document.getElementById(&#x27;temperature&#x27;);
 const humidity=document.getElementById(&#x27;humidity&#x27;);
 const alarmState=document.getElementById(&#x27;alarmState&#x27;);
 const alarmBox=document.getElementById(&#x27;alarmBox&#x27;);
 const statusText=document.getElementById(&#x27;status&#x27;);
+const modeState=document.getElementById(&#x27;modeState&#x27;);
+const manualControls=document.getElementById(&#x27;manualControls&#x27;);
+const controlNote=document.getElementById(&#x27;controlNote&#x27;);
+const controlButtons=[...document.querySelectorAll(&#x27;[data-action]&#x27;)];
+let controlBusy=false;
+function renderControls(data){
+  const manual=data.mode===&#x27;manual&#x27;;
+  modeState.textContent=&#x27;当前模式：&#x27;+(manual?&#x27;手动&#x27;:&#x27;自动&#x27;);
+  manualControls.hidden=!manual;
+  controlNote.textContent=manual?&#x27;手动模式下自动报警暂停；使用下方按钮直接控制 LED。&#x27;:&#x27;自动模式按照温湿度阈值控制 LED。&#x27;;
+  controlButtons.forEach(button=&gt;{
+    button.disabled=controlBusy||((button.dataset.action===&#x27;led_on&#x27;||button.dataset.action===&#x27;led_off&#x27;)&amp;&amp;!manual);
+    button.classList.toggle(&#x27;selected&#x27;,button.dataset.action===(manual?&#x27;mode_manual&#x27;:&#x27;mode_auto&#x27;));
+  });
+}
+async function sendAction(action){
+  if(controlBusy) return;
+  controlBusy=true;
+  controlButtons.forEach(button=&gt;button.disabled=true);
+  try{
+    const response=await fetch(&#x27;/api/control&#x27;,{method:&#x27;POST&#x27;,headers:{&#x27;Content-Type&#x27;:&#x27;application/x-www-form-urlencoded&#x27;},body:&#x27;action=&#x27;+encodeURIComponent(action)});
+    const result=await response.json();
+    if(!response.ok||!result.ok) throw new Error(result.error||&#x27;HTTP &#x27;+response.status);
+  }catch(error){
+    statusText.textContent=&#x27;控制失败：&#x27;+error.message;
+    statusText.className=&#x27;status error&#x27;;
+  }finally{
+    controlBusy=false;
+    await refresh();
+  }
+}
+controlButtons.forEach(button=&gt;button.addEventListener(&#x27;click&#x27;,()=&gt;sendAction(button.dataset.action)));
 async function refresh(){
   try{
     const response=await fetch(&#x27;/api/readings&#x27;,{cache:&#x27;no-store&#x27;});
     if(!response.ok) throw new Error(&#x27;HTTP &#x27;+response.status);
     const data=await response.json();
+    renderControls(data);
+    alarmState.textContent=data.led_on?&#x27;LED 已点亮&#x27;:&#x27;LED 已关闭&#x27;;
+    alarmBox.className=data.led_on?&#x27;alarm active&#x27;:&#x27;alarm&#x27;;
     if(data.has_reading){
       temperature.textContent=data.temperature;
       humidity.textContent=data.humidity;
-      alarmState.textContent=data.alarm?&#x27;报警灯已点亮&#x27;:&#x27;报警灯熄灭&#x27;;
-      alarmBox.className=data.alarm?&#x27;alarm active&#x27;:&#x27;alarm&#x27;;
     }else{
-      alarmState.textContent=&#x27;等待有效传感器读数&#x27;;
-      alarmBox.className=&#x27;alarm&#x27;;
+      temperature.textContent=&#x27;--&#x27;;
+      humidity.textContent=&#x27;--&#x27;;
     }
     if(data.sensor_ok){
       const age=(data.age_ms/1000).toFixed(1);
-      statusText.textContent=(data.alarm?&#x27;温湿度同时越界&#x27;:&#x27;条件未同时满足&#x27;)+&#x27; · 数据更新于 &#x27;+age+&#x27; 秒前&#x27;;
+      const condition=data.alarm_condition?&#x27;温湿度同时越界&#x27;:&#x27;自动报警条件未满足&#x27;;
+      statusText.textContent=condition+&#x27; · &#x27;+(data.mode===&#x27;manual&#x27;?&#x27;自动报警暂停&#x27;:&#x27;自动控制中&#x27;)+&#x27; · 数据更新于 &#x27;+age+&#x27; 秒前&#x27;;
       statusText.className=&#x27;status&#x27;;
     }else if(data.has_reading){
-      statusText.textContent=(data.error||&#x27;传感器读取失败&#x27;)+&#x27;；当前灯状态沿用上次有效读数&#x27;;
+      statusText.textContent=(data.error||&#x27;传感器读取失败&#x27;)+(data.mode===&#x27;manual&#x27;?&#x27;；手动 LED 状态仍有效&#x27;:&#x27;；当前 LED 状态沿用上次有效读数&#x27;);
       statusText.className=&#x27;status error&#x27;;
     }else{
-      statusText.textContent=data.error||&#x27;尚未取得有效读数，报警状态不可用&#x27;;
+      statusText.textContent=data.mode===&#x27;manual&#x27;?&#x27;尚无有效传感器读数；手动 LED 控制仍可用&#x27;:(data.error||&#x27;尚未取得有效读数，自动报警状态不可用&#x27;);
       statusText.className=&#x27;status error&#x27;;
     }
   }catch(error){
@@ -159,7 +208,43 @@ def readings_json():
     updated_ms = result.pop(&#x27;updated_ms&#x27;)
     result[&#x27;age_ms&#x27;] = (time.ticks_diff(time.ticks_ms(), updated_ms)
                         if updated_ms is not None else None)
+    result[&#x27;mode&#x27;] = control_mode
+    result[&#x27;alarm_condition&#x27;] = bool(latest[&#x27;alarm&#x27;])
+    result[&#x27;led_on&#x27;] = bool(alarm_led.value())
     return ujson.dumps(result)
+
+
+def set_control(action):
+    global control_mode, manual_led_on
+    if action == b&#x27;mode_manual&#x27;:
+        if control_mode != &#x27;manual&#x27;:
+            manual_led_on = bool(alarm_led.value())
+        control_mode = &#x27;manual&#x27;
+        alarm_led.value(LED_ON_LEVEL if manual_led_on else LED_OFF_LEVEL)
+    elif action == b&#x27;mode_auto&#x27;:
+        control_mode = &#x27;auto&#x27;
+        if latest[&#x27;has_reading&#x27;]:
+            alarm_led.value(LED_ON_LEVEL if latest[&#x27;alarm&#x27;] else LED_OFF_LEVEL)
+        else:
+            alarm_led.value(LED_OFF_LEVEL)
+    elif action == b&#x27;led_on&#x27; or action == b&#x27;led_off&#x27;:
+        if control_mode != &#x27;manual&#x27;:
+            return False
+        manual_led_on = action == b&#x27;led_on&#x27;
+        alarm_led.value(LED_ON_LEVEL if manual_led_on else LED_OFF_LEVEL)
+    else:
+        return False
+    return True
+
+
+def control_json(ok, error=None):
+    return ujson.dumps({
+        &#x27;ok&#x27;: ok,
+        &#x27;error&#x27;: error,
+        &#x27;mode&#x27;: control_mode,
+        &#x27;alarm_condition&#x27;: bool(latest[&#x27;alarm&#x27;]),
+        &#x27;led_on&#x27;: bool(alarm_led.value()),
+    })
 
 
 def handle(client):
@@ -173,13 +258,54 @@ def handle(client):
         if len(request) &gt; 2048:
             respond(client, &#x27;431 Request Header Fields Too Large&#x27;, &#x27;Request too large&#x27;)
             return
-    parts = request.split(b&#x27;\r\n&#x27;, 1)[0].split()
+    header, body = request.split(b&#x27;\r\n\r\n&#x27;, 1)
+    lines = header.split(b&#x27;\r\n&#x27;)
+    parts = lines[0].split()
+    content_length = 0
+    for line in lines[1:]:
+        if line.lower().startswith(b&#x27;content-length:&#x27;):
+            try:
+                content_length = int(line.split(b&#x27;:&#x27;, 1)[1].strip())
+            except ValueError:
+                respond(client, &#x27;400 Bad Request&#x27;, &#x27;Invalid Content-Length&#x27;)
+                return
+    if content_length &lt; 0 or content_length &gt; 256:
+        respond(client, &#x27;413 Payload Too Large&#x27;, &#x27;Request body too large&#x27;)
+        return
+    while len(body) &lt; content_length:
+        chunk = client.recv(256)
+        if not chunk:
+            respond(client, &#x27;400 Bad Request&#x27;, &#x27;Incomplete request body&#x27;)
+            return
+        body += chunk
     if len(parts) != 3:
         respond(client, &#x27;400 Bad Request&#x27;, &#x27;Bad request&#x27;)
     elif parts[0] == b&#x27;GET&#x27; and parts[1] == b&#x27;/&#x27;:
         respond(client, &#x27;200 OK&#x27;, PAGE)
     elif parts[0] == b&#x27;GET&#x27; and parts[1] == b&#x27;/api/readings&#x27;:
         respond(client, &#x27;200 OK&#x27;, readings_json(), &#x27;application/json; charset=utf-8&#x27;)
+    elif parts[1] == b&#x27;/api/control&#x27; and parts[0] != b&#x27;POST&#x27;:
+        respond(client, &#x27;405 Method Not Allowed&#x27;, &#x27;Use POST&#x27;)
+    elif parts[0] == b&#x27;POST&#x27; and parts[1] == b&#x27;/api/control&#x27;:
+        if not body.startswith(b&#x27;action=&#x27;):
+            respond(client, &#x27;400 Bad Request&#x27;, control_json(False, &#x27;Expected action&#x27;),
+                    &#x27;application/json; charset=utf-8&#x27;)
+        else:
+            action = body[7:content_length]
+            if action in (b&#x27;mode_auto&#x27;, b&#x27;mode_manual&#x27;):
+                set_control(action)
+                respond(client, &#x27;200 OK&#x27;, control_json(True),
+                        &#x27;application/json; charset=utf-8&#x27;)
+            elif action in (b&#x27;led_on&#x27;, b&#x27;led_off&#x27;):
+                if set_control(action):
+                    respond(client, &#x27;200 OK&#x27;, control_json(True),
+                            &#x27;application/json; charset=utf-8&#x27;)
+                else:
+                    respond(client, &#x27;409 Conflict&#x27;, control_json(False, &#x27;Switch to manual mode first&#x27;),
+                            &#x27;application/json; charset=utf-8&#x27;)
+            else:
+                respond(client, &#x27;400 Bad Request&#x27;, control_json(False, &#x27;Unknown action&#x27;),
+                        &#x27;application/json; charset=utf-8&#x27;)
     else:
         respond(client, &#x27;404 Not Found&#x27;, &#x27;Not found&#x27;)
 
@@ -191,7 +317,8 @@ def sample_sensor():
         temperature = sensor.temperature()
         humidity = sensor.humidity()
         alarm = temperature &gt; TEMP_THRESHOLD_C and humidity &gt; HUMIDITY_THRESHOLD_RH
-        alarm_led.value(LED_ON_LEVEL if alarm else LED_OFF_LEVEL)
+        if control_mode == &#x27;auto&#x27;:
+            alarm_led.value(LED_ON_LEVEL if alarm else LED_OFF_LEVEL)
         latest = {
             &#x27;sensor_ok&#x27;: True,
             &#x27;has_reading&#x27;: True,
@@ -201,8 +328,9 @@ def sample_sensor():
             &#x27;updated_ms&#x27;: time.ticks_ms(),
             &#x27;error&#x27;: None,
         }
-        print(&#x27;Temperature: %s C, humidity: %s %%RH, alarm: %s&#x27;
-              % (temperature, humidity, &#x27;ON&#x27; if alarm else &#x27;OFF&#x27;))
+        print(&#x27;Temperature: %s C, humidity: %s %%RH, automatic alarm: %s, mode: %s, LED: %s&#x27;
+              % (temperature, humidity, &#x27;ON&#x27; if alarm else &#x27;OFF&#x27;, control_mode,
+                 &#x27;ON&#x27; if alarm_led.value() else &#x27;OFF&#x27;))
     except OSError as error:
         latest[&#x27;sensor_ok&#x27;] = False
         latest[&#x27;error&#x27;] = &#x27;DHT11 读取失败，请检查接线和供电&#x27;
@@ -245,15 +373,15 @@ def main():
 
 if __name__ == &#x27;__main__&#x27;:
     main()</code></pre></section>
-<section id="deploy"><h2>部署和使用</h2><ol><li>确认 <code>config/wifi_config.py</code> 已填写可用的 2.4 GHz 网络配置。该文件是私有配置，不要提交或分享。</li><li>确认 ESP32 通过 USB 连接，查看串口：</li></ol><pre data-copy><code class="language-bash">python scripts/device.py ports</code></pre><p>替换命令中的串口为实际设备，然后部署实战项目 01：</p><pre data-copy><code class="language-bash">python scripts/device.py deploy project-01 --port /dev/cu.usbserial-0001 --repl</code></pre><p>串口显示 <code>Open in browser: http://设备IP/</code> 后，在与 ESP32 同一局域网的电脑或手机浏览器中打开。报警灯根据最新有效 DHT11 采样自动更新。按 Ctrl-] 退出 REPL，不会停止板上程序。</p><p>切换到其他案例会替换板上的 <code>main.py</code>。需要恢复温湿度监测案例时，重新部署案例 04。</p></section>
-<section id="verify"><h2>验收与排错</h2><ul class="checklist"><li><label><input type="checkbox">串口显示 Wi-Fi 地址与 DHT11 温湿度数据。</label></li><li><label><input type="checkbox">网页温度、湿度与接口返回值相符。</label></li><li><label><input type="checkbox">温度不超过 25°C 或湿度不超过 60% RH 时，报警灯熄灭。</label></li><li><label><input type="checkbox">两个条件同时大于阈值时，报警灯点亮，网页状态同步。</label></li><li><label><input type="checkbox">传感器采样失败时网页显示错误/陈旧，报警灯保留最后一次有效状态。</label></li></ul>
+<section id="deploy"><h2>部署和使用</h2><ol><li>确认 <code>config/wifi_config.py</code> 已填写可用的 2.4 GHz 网络配置。该文件是私有配置，不要提交或分享。</li><li>确认 ESP32 通过 USB 连接，查看串口：</li></ol><pre data-copy><code class="language-bash">python scripts/device.py ports</code></pre><p>替换命令中的串口为实际设备，然后部署实战项目 01：</p><pre data-copy><code class="language-bash">python scripts/device.py deploy project-01 --port /dev/cu.usbserial-0001 --repl</code></pre><p>串口显示 <code>Open in browser: http://设备IP/</code> 后，在与 ESP32 同一局域网的电脑或手机浏览器中打开。默认是自动模式；点击“手动模式”后使用“点亮 LED / 关闭 LED”按钮控制 D23，此时自动报警暂停但温湿度继续刷新。点击“自动模式”会立即按最近一次有效读数恢复阈值控制。控制页面没有身份验证，只在可信 Wi-Fi 网络中使用。按 Ctrl-] 退出 REPL，不会停止板上程序。</p><p>切换到其他案例会替换板上的 <code>main.py</code>。需要恢复温湿度监测案例时，重新部署案例 04。</p></section>
+<section id="verify"><h2>验收与排错</h2><ul class="checklist"><li><label><input type="checkbox">串口显示 Wi-Fi 地址与 DHT11 温湿度数据。</label></li><li><label><input type="checkbox">网页温度、湿度与接口返回值相符。</label></li><li><label><input type="checkbox">自动模式下温度不超过 25°C 或湿度不超过 60% RH 时，报警灯熄灭。</label></li><li><label><input type="checkbox">自动模式下两个条件同时大于阈值时，报警灯点亮，网页状态同步。</label></li><li><label><input type="checkbox">手动模式可点亮和关闭 LED，后续 DHT11 采样不会覆盖手动状态。</label></li><li><label><input type="checkbox">切回自动模式后 LED 立即按最近有效读数恢复阈值控制。</label></li><li><label><input type="checkbox">传感器采样失败时网页显示错误/陈旧；自动模式保留最后一次有效报警输出。</label></li></ul>
 <div class="table-wrap"><table><thead><tr><th>现象</th><th>排查方法</th></tr></thead><tbody>
 <tr><td>上传脚本找不到 <code>project-01</code></td><td>确认命令写作 <code>deploy project-01</code>，并在项目根目录运行。</td></tr>
 <tr><td>DHT11 读取失败</td><td>核对案例 04 的 DHT11 接线、模块支持的供电电压和 DATA 上拉；读取间隔不能短于传感器要求。</td></tr>
 <tr><td>报警条件满足但灯不亮</td><td>确认 LED 串联电阻、D23/GPIO23 引脚映射、正负极接法，以及代码中的有效电平。</td></tr>
 <tr><td>网页打不开</td><td>确认手机/电脑与 ESP32 在同一可互通的 Wi-Fi 网络，并使用本次串口打印的 IP。</td></tr>
-<tr><td>阈值边缘未触发</td><td>比较完整读数；等于 25°C 或 60% RH 都不满足严格大于条件。</td></tr>
+<tr><td>手动开关不可用</td><td>先点击“手动模式”；自动模式下手动点亮/关闭按钮会禁用。</td></tr><tr><td>阈值边缘未触发</td><td>比较完整读数；等于 25°C 或 60% RH 都不满足严格大于条件。</td></tr>
 </tbody></table></div><div class="note amber"><strong>用途范围</strong><p>这是低压 LED 的学习演示，不是安全报警器或环境监测设备，不能用于生命安全、设备保护或合规监控。</p></div></section>
-<section id="journal"><h2>实测记录</h2><div class="note amber"><strong>等待项目部署验收</strong><p>程序包含温湿度 AND 阈值判断、网页状态与 D23 LED 控制。部署后记录日期、实际温湿度、报警灯状态与网页显示。只有在温度和湿度同时超过阈值时观察到 LED 点亮，才记录物理报警触发通过。</p></div><p class="references">参考：<a href="../../examples/04-temperature-humidity/index.html">案例 04 DHT11 网页监测</a> · <a href="https://docs.micropython.org/en/v1.29.0/esp32/quickref.html#dht-driver">MicroPython DHT 驱动</a> · <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/gpio.html">Espressif ESP32 GPIO 说明</a>。</p></section>
+<section id="journal"><h2>实测记录</h2><div class="note"><strong>2026-10-27：自动报警与网页手动控制</strong><p>已部署到 ESP32。浏览器显示 DHT11 温湿度数据；手动模式下点击“点亮 LED”，页面显示 LED 已点亮，等待一个采样周期后状态仍保持；点击“关闭 LED”后状态关闭。切回自动模式时，24°C、49% RH 未满足双阈值，LED 输出为低电平并保持关闭。控制 API 读取的是 GPIO23 输出状态；没有目视观察 LED 实体灯光。当前环境未同时超过温度和湿度阈值，自动报警触发仍待实测。</p><p>该网页控制接口没有身份验证，只在可信本地 Wi-Fi 网络中使用。</p></div><p class="references">参考：<a href="../../examples/04-temperature-humidity/index.html">案例 04 DHT11 网页监测</a> · <a href="https://docs.micropython.org/en/v1.29.0/esp32/quickref.html#dht-driver">MicroPython DHT 驱动</a> · <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/gpio.html">Espressif ESP32 GPIO 说明</a>。</p></section>
 <nav class="pager" aria-label="章节导航"><a href="../index.html">← 实战项目目录</a><a href="../../examples/04-temperature-humidity/index.html">案例 04：温湿度网页监测 →</a></nav></article></main></div>
 <footer class="footer"><span>个人学习记录 · MicroPython 实践</span><span>实战项目 01 · 温湿度报警</span></footer></body></html>

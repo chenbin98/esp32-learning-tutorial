@@ -73,7 +73,7 @@ python scripts/device.py deploy 04 --port /dev/cu.usbserial-0001 --repl
 
 DHT11 约每 2.5 秒采样一次，网页状态每秒刷新。完整接线和供电说明见案例教程。
 
-实战项目 01：温度超过 25°C 且湿度超过 60% RH 时，点亮 D23 LED：
+实战项目 01：自动模式下，温度超过 25°C 且湿度超过 60% RH 时点亮 D23 LED；网页也支持在可信局域网内手动控制：
 
 ```bash
 python scripts/device.py deploy project-01 --port /dev/cu.usbserial-0001 --repl

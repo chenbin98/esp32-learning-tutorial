@@ -183,15 +183,19 @@ def readings_json():
                         if updated_ms is not None else None)
     result['mode'] = control_mode
     result['alarm_condition'] = bool(latest['alarm'])
-    result['led_on'] = bool(alarm_led.value())
+    result['led_on'] = led_is_on()
     return ujson.dumps(result)
+
+
+def led_is_on():
+    return alarm_led.value() == LED_ON_LEVEL
 
 
 def set_control(action):
     global control_mode, manual_led_on
     if action == b'mode_manual':
         if control_mode != 'manual':
-            manual_led_on = bool(alarm_led.value())
+            manual_led_on = led_is_on()
         control_mode = 'manual'
         alarm_led.value(LED_ON_LEVEL if manual_led_on else LED_OFF_LEVEL)
     elif action == b'mode_auto':
@@ -216,7 +220,7 @@ def control_json(ok, error=None):
         'error': error,
         'mode': control_mode,
         'alarm_condition': bool(latest['alarm']),
-        'led_on': bool(alarm_led.value()),
+        'led_on': led_is_on(),
     })
 
 
@@ -303,7 +307,7 @@ def sample_sensor():
         }
         print('Temperature: %s C, humidity: %s %%RH, automatic alarm: %s, mode: %s, LED: %s'
               % (temperature, humidity, 'ON' if alarm else 'OFF', control_mode,
-                 'ON' if alarm_led.value() else 'OFF'))
+                 'ON' if led_is_on() else 'OFF'))
     except OSError as error:
         latest['sensor_ok'] = False
         latest['error'] = 'DHT11 读取失败，请检查接线和供电'

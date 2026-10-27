@@ -210,15 +210,19 @@ def readings_json():
                         if updated_ms is not None else None)
     result[&#x27;mode&#x27;] = control_mode
     result[&#x27;alarm_condition&#x27;] = bool(latest[&#x27;alarm&#x27;])
-    result[&#x27;led_on&#x27;] = bool(alarm_led.value())
+    result[&#x27;led_on&#x27;] = led_is_on()
     return ujson.dumps(result)
+
+
+def led_is_on():
+    return alarm_led.value() == LED_ON_LEVEL
 
 
 def set_control(action):
     global control_mode, manual_led_on
     if action == b&#x27;mode_manual&#x27;:
         if control_mode != &#x27;manual&#x27;:
-            manual_led_on = bool(alarm_led.value())
+            manual_led_on = led_is_on()
         control_mode = &#x27;manual&#x27;
         alarm_led.value(LED_ON_LEVEL if manual_led_on else LED_OFF_LEVEL)
     elif action == b&#x27;mode_auto&#x27;:
@@ -243,7 +247,7 @@ def control_json(ok, error=None):
         &#x27;error&#x27;: error,
         &#x27;mode&#x27;: control_mode,
         &#x27;alarm_condition&#x27;: bool(latest[&#x27;alarm&#x27;]),
-        &#x27;led_on&#x27;: bool(alarm_led.value()),
+        &#x27;led_on&#x27;: led_is_on(),
     })
 
 
@@ -330,7 +334,7 @@ def sample_sensor():
         }
         print(&#x27;Temperature: %s C, humidity: %s %%RH, automatic alarm: %s, mode: %s, LED: %s&#x27;
               % (temperature, humidity, &#x27;ON&#x27; if alarm else &#x27;OFF&#x27;, control_mode,
-                 &#x27;ON&#x27; if alarm_led.value() else &#x27;OFF&#x27;))
+                 &#x27;ON&#x27; if led_is_on() else &#x27;OFF&#x27;))
     except OSError as error:
         latest[&#x27;sensor_ok&#x27;] = False
         latest[&#x27;error&#x27;] = &#x27;DHT11 读取失败，请检查接线和供电&#x27;

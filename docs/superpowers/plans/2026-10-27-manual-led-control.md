@@ -78,7 +78,7 @@
 - [x] Read GPIO23 after an ON and OFF command; report the physical LED as visually verified only if it is actually observed.
 - [x] Regenerate `dist/esp32-learning-tutorial.zip` and confirm the project files are included without private Wi-Fi configuration.
 - [x] Update the validation record with observed commands/results and limitations; do not claim threshold-triggered alarm unless observed.
-- [ ] Commit and push the project update to the existing public repository.
+- [x] Commit and push the project update to the existing public repository.
 
 ## Verification Boundary
 

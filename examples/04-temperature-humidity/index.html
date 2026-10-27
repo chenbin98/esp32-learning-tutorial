@@ -15,11 +15,11 @@
 <div class="diagram"><div class="flow"><div class="node">DHT11<small>DATA → D2 / GPIO2</small></div><span class="arrow">→</span><div class="node">ESP32<small>MicroPython + Wi-Fi</small></div><span class="arrow">↔ 局域网</span><div class="node">电脑 / 手机<small>浏览器自动刷新</small></div></div><div class="caption">浏览器只读取最近一次成功采样的数据；断开网络时会显示连接提示。</div></div>
 <p>本板的 D2 对应 GPIO2。案例 04 会替换板上正在运行的 <code>main.py</code>，但部署工具会先备份旧文件。网页和案例 02 一样，需要电脑/手机与 ESP32 在可互通的局域网中。</p></section>
 <section id="wiring"><h2>传感器接线</h2><div class="table-wrap"><table><thead><tr><th>DHT11 模块标签</th><th>ESP32 接点</th><th>说明</th></tr></thead><tbody>
-<tr><td>VCC / +</td><td>3V3</td><td>你当前接 3.3V；先核对具体模块是否支持 3.3V。AOSONG 裸 DHT11 手册规格为 3.5–5.5V。</td></tr>
+<tr><td>VCC / +</td><td>3V3</td><td>按你当前的接法供电；先核对具体模块是否支持 3.3V。</td></tr>
 <tr><td>GND / -</td><td>GND</td><td>传感器与 ESP32 必须共地。</td></tr>
 <tr><td>SIG / DATA / OUT</td><td>D2 / GPIO2</td><td>单总线数字数据。</td></tr>
-</tbody></table></div><div class="note amber"><strong>先看模块上的针脚标记</strong><p>三针模块和裸四针传感器的针脚顺序不一定一样，不要只按“从左到右”猜。你已确认当前 VCC 接 3.3V；AOSONG 裸 DHT11 手册标出的供电范围是 3.5–5.5V，部分模块或兼容件规格不同，请按手上模块的说明核对。若模块在 3.3V 下不能稳定工作，不要直接把 DATA 接到 5V 上拉；改供 5V 时应确保 DATA 到 ESP32 GPIO 的电平不超过 3.3V，可用 3.3V 上拉或电平转换。裸 DHT11 通常还需要 DATA 到 3.3V 的上拉电阻；很多模块已集成上拉。</p></div>
-<p>GPIO2 在 ESP32 上也参与启动配置。本板当前 D2 已用于前面的 LED 案例；本案例将它作为 DHT11 数据脚。若启动、刷写或数据读取不稳定，先确认 D2 没有同时连接外接 LED 等负载；也可断电后把 SIG 移到普通 GPIO（例如 GPIO4），并将源码中的 <code>SENSOR_PIN</code> 同步改为 <code>4</code>。</p></section>
+</tbody></table></div><div class="note amber"><strong>先看模块上的针脚标记</strong><p>三针模块和裸四针传感器的针脚顺序不一定一样，不要只按“从左到右”猜。裸 DHT11 通常还需要 DATA 到 3.3V 的上拉电阻；很多三针模块已经集成上拉。若模块不支持 3.3V，请按模块资料选择供电，并确保 DATA 到 ESP32 GPIO 的高电平不超过 3.3V（ESP32 GPIO 容忍上限为 3.6V）；不能因为传感器 VCC 接 5V 就让 DATA 也被上拉到 5V。</p></div>
+<p>GPIO2 在 ESP32 上也参与启动配置。本板当前 D2 已用于前面的 LED 案例；本案例将它作为 DHT11 数据脚。若启动、刷写或数据读取不稳定，可断电后把 SIG 移到普通 GPIO（例如 GPIO4），并将源码中的 <code>SENSOR_PIN</code> 同步改为 <code>4</code>。</p></section>
 <section id="code"><h2>完整程序</h2><p>部署工具会将这个案例的 <code>main.py</code> 上传到开发板，并把本地私人配置文件上传为 <code>wifi_config.py</code>。代码使用 MicroPython 固件自带的 <code>dht</code> 模块，不需要 pip 安装传感器驱动。</p>
 <pre data-copy><code class="language-python">&quot;&quot;&quot;案例 04：通过 Wi-Fi 网页实时显示 DHT11 温湿度。&quot;&quot;&quot;
 import dht
@@ -70,7 +70,6 @@ box-shadow:0 18px 50px #18304a18}h1{margin:0 0 8px;font-size:clamp(26px,7vw,36px
 const temperature=document.getElementById(&#x27;temperature&#x27;);
 const humidity=document.getElementById(&#x27;humidity&#x27;);
 const statusText=document.getElementById(&#x27;status&#x27;);
-const statusBox=statusText;
 async function refresh(){
   try{
     const response=await fetch(&#x27;/api/readings&#x27;,{cache:&#x27;no-store&#x27;});
@@ -81,14 +80,14 @@ async function refresh(){
     if(data.ok){
       const age=(data.age_ms/1000).toFixed(1);
       statusText.textContent=&#x27;采集正常 · 数据更新于 &#x27;+age+&#x27; 秒前&#x27;;
-      statusBox.className=&#x27;status&#x27;;
+      statusText.className=&#x27;status&#x27;;
     }else{
       statusText.textContent=data.error||&#x27;传感器读取失败，显示上次成功数据&#x27;;
-      statusBox.className=&#x27;status error&#x27;;
+      statusText.className=&#x27;status error&#x27;;
     }
   }catch(error){
     statusText.textContent=&#x27;无法读取 ESP32 数据，请检查网络连接后重试&#x27;;
-    statusBox.className=&#x27;status error&#x27;;
+    statusText.className=&#x27;status error&#x27;;
   }
 }
 refresh();
@@ -218,7 +217,7 @@ if __name__ == &#x27;__main__&#x27;:
 <tr><td>温湿度显示 <code>--</code></td><td>查看串口最早的采样错误；检查模块供电规格和 DATA 线，裸传感器需要正确上拉。</td></tr>
 <tr><td>页面无法打开</td><td>确认手机/电脑和 ESP32 在同一可互通的 Wi-Fi 局域网，使用串口打印的完整 IP。</td></tr>
 </tbody></table></div></section>
-<section id="journal"><h2>我的学习记录</h2><div class="note amber"><strong>硬件结果待填写</strong><p>代码、网页和复现步骤已加入教程；请在部署后记录日期、DHT11 模块照片/针脚标记、采样供电、串口读数、网页读数及错误处理。尚未完成的现场现象不标记为实测。</p></div><p>注意：DHT11 精度和响应速度有限，网页变化不代表环境瞬时变化。练习：调整网页配色、显示最大/最小值，或把采样值写入文件实现简单记录。</p>
-<p class="references">参考：<a href="https://docs.micropython.org/en/v1.29.0/esp32/quickref.html#dht-driver">MicroPython v1.29.0 ESP32 DHT 驱动</a> · <a href="https://www.aosong.com/userfiles/files/media/DHT11-V1_3%E8%AF%B4%E6%98%8E%E4%B9%A6%EF%BC%88%E8%AF%A6%E7%BB%86%E7%89%88%EF%BC%89.pdf">AOSONG DHT11 产品手册</a> · <a href="https://docs.espressif.com/projects/esp-faq/en/latest/esp-faq-en-master.pdf">Espressif GPIO 电气说明</a>。</p></section>
+<section id="journal"><h2>我的学习记录</h2><div class="note"><strong>2026-10-27 实测记录</strong><p>ESP32-D0WD-V3，DHT11，VCC 3V3、GND 共地、SIG 接 D2/GPIO2。Wi-Fi 连接成功，REPL 读取到 24°C、41% RH。电脑请求网页和 <code>/api/readings</code> 均返回 HTTP 200；JSON 连续返回有效读数，采样年龄约 1.7 秒。尚未通过图形浏览器做截图验收，也未观察环境变化导致读数改变。</p></div><p>注意：DHT11 精度和响应速度有限，网页变化不代表环境瞬时变化。练习：调整网页配色、显示最大/最小值，或把采样值写入文件实现简单记录。</p>
+<p class="references">参考：<a href="https://docs.micropython.org/en/v1.29.0/esp32/quickref.html#dht-driver">MicroPython v1.29.0 ESP32 DHT 驱动</a> · <a href="https://www.aosong.com/userfiles/files/media/DHT11-V1_3%E8%AF%B4%E6%98%8E%E4%B9%A6%EF%BC%88详细版%EF%BC%89.pdf">AOSONG DHT11 产品手册</a> · <a href="https://docs.espressif.com/projects/esp-faq/en/latest/esp-faq-en-master.pdf">Espressif GPIO 电气说明</a>。</p></section>
 <nav class="pager" aria-label="章节导航"><a href="../03-bluetooth-led/index.html">← 案例 03：BLE 控制</a><a href="../../docs/contributing.html">记录案例 05 →</a></nav></article></main></div>
 <footer class="footer"><span>个人学习记录 · MicroPython 实践</span><span>案例 04 · DHT11</span></footer></body></html>

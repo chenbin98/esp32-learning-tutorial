@@ -10,7 +10,8 @@
 2. [案例 01：点亮第一盏 LED](examples/01-led-blink/index.html)：D2 / GPIO2 亮 1 秒、灭 1 秒。
 3. [案例 02：Wi-Fi 网页控制 LED](examples/02-wifi-led/index.html)：连接 2.4 GHz Wi-Fi，通过局域网网页开关 LED。
 4. [案例 03：手机 BLE 控制 LED](examples/03-bluetooth-led/index.html)：手机通过 BLE GATT 写入开关指令。
-5. [记录新案例](docs/contributing.html)：模板、记录规范与分享方法。
+5. [案例 04：网页温湿度监测](examples/04-temperature-humidity/index.html)：DHT11 接入 D2/GPIO2，网页自动显示温湿度。
+6. [记录新案例](docs/contributing.html)：模板、记录规范与分享方法。
 
 实测起点：macOS、Python 3.12.2、ESP32-D0WD-V3 / 4 MB Flash、MicroPython 1.29.0。其他板型先核对引脚与固件。Windows / Linux 操作差异已写入环境教程，尚未实机验证。
 
@@ -22,6 +23,7 @@ examples/
   01-led-blink/                     独立脚本 + HTML 教程 + case.json
   02-wifi-led/                      独立脚本 + HTML 教程 + 配置模板 + case.json
   03-bluetooth-led/                 BLE 脚本 + HTML 教程 + case.json
+  04-temperature-humidity/          DHT11 脚本 + HTML 教程 + case.json
 config/wifi_config.py               私人 Wi-Fi 配置，不分享
 scripts/device.py                  电脑端串口 / 上传工具
 scripts/check_tutorial.py           文档链接与公开文件检查
@@ -58,6 +60,14 @@ python scripts/device.py deploy 03 --port /dev/cu.usbserial-0001 --repl
 ```
 
 手机端扫描并连接 `ESP32-LED-03`，向 FFF0 服务下的 FFF1 特征值写入 `on` 或 `off`。Desktop 的 Adapter 要求和操作步骤见案例教程。
+
+案例 04：首次使用确认 `config/wifi_config.py` 已填写本人 Wi-Fi 配置，部署后按串口打印的 IP 打开温湿度网页：
+
+```bash
+python scripts/device.py deploy 04 --port /dev/cu.usbserial-0001 --repl
+```
+
+DHT11 约每 2.5 秒采样一次，网页状态每秒刷新。完整接线和供电说明见案例教程。
 `--dry-run` 只检查文件和显示上传路径，不连接设备。
 
 上传工具会中断板上当前程序，备份将被替换的同名文件，上传临时文件并核对 SHA-256，全部通过后替换文件、重启。选择案例会替换板上的 `main.py`；它不删除其他文件，也不擦除固件。多文件替换不是断电原子事务，异常时应修正问题并重新部署，不能把中途失败当作完成。

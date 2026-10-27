@@ -15,7 +15,7 @@ def load_case(case_id, root=ROOT):
     matches = [p for p in (root / "examples").iterdir()
                if p.is_dir() and (p.name == case_id or p.name.startswith(case_id + "-"))]
     if len(matches) != 1:
-        raise ValueError("案例编号不存在或不唯一，请使用 01、02 或完整目录名。")
+        raise ValueError("案例编号不存在或不唯一，请使用 01–04 或完整目录名。")
     folder = matches[0]
     manifest = json.loads((folder / "case.json").read_text(encoding="utf-8"))
     files = []
@@ -25,7 +25,7 @@ def load_case(case_id, root=ROOT):
             if not path.is_relative_to(base.resolve()) or Path(destination).name != destination or destination in ("", ".", ".."):
                 raise ValueError("清单中的路径必须在案例或配置目录内，目标必须是文件名。")
             if not path.is_file():
-                raise ValueError("缺少文件：%s；案例 02 请先复制并填写配置模板。" % path)
+                raise ValueError("缺少文件：%s；请按案例教程准备必需的本地 Wi-Fi 配置。" % path)
             if path.suffix == ".py":
                 try:
                     compile(path.read_bytes(), str(path), "exec")
@@ -100,7 +100,7 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ports", help="列出系统当前串口")
     upload = commands.add_parser("deploy", help="备份、上传、校验并重启一个案例")
-    upload.add_argument("case", help="01、02、03 或完整案例目录名")
+    upload.add_argument("case", help="01、02、03、04 或完整案例目录名")
     upload.add_argument("--port", required=True, help="例如 /dev/cu.usbserial-0001 或 COM3")
     upload.add_argument("--dry-run", action="store_true", help="仅检查文件并预览上传路径")
     upload.add_argument("--repl", action="store_true", help="重启后进入串口终端；Ctrl-] 退出")

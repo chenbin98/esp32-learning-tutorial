@@ -45,7 +45,7 @@ def check():
                 errors.append('断开的本地链接：%s -> %s' % (path.relative_to(ROOT), link))
             elif parts.fragment and target in pages and unquote(parts.fragment) not in pages[target].ids:
                 errors.append('不存在的章节锚点：%s -> %s' % (path.relative_to(ROOT), link))
-    for case in ('01-led-blink', '02-wifi-led', '03-bluetooth-led'):
+    for case in ('01-led-blink', '02-wifi-led', '03-bluetooth-led', '04-temperature-humidity'):
         folder = ROOT / 'examples' / case
         source = (folder / 'main.py').read_text(encoding='utf-8').strip()
         if source not in pages[(folder / 'index.html').resolve()].codes:

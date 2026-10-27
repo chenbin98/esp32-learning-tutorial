@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="从第一个 LED 到 Wi-Fi 网页控制：记录个人学习过程，提供可复现的 ESP32 MicroPython 案例。">
+<title>把下一步，也写成一个案例 · ESP32 学习手记</title><link rel="stylesheet" href="../docs/assets/tutorial.css">
+<script defer src="../docs/assets/tutorial.js"></script></head><body>
+<a class="skip" href="#content">跳到正文</a>
+<header class="topbar"><a class="brand" href="../index.html"><span>E32</span> ESP32 学习手记</a>
+<nav aria-label="主导航"><a href="../docs/setup.html">环境准备</a><a href="../index.html#cases">案例目录</a><a href="../docs/contributing.html">记录新案例</a></nav></header>
+<div class="layout"><aside class="sidebar" aria-label="本页目录"><p>本页目录</p><a href="#pattern">每个案例保留同一种结构</a><a href="#new">从模板开始下一篇</a><a href="#records">怎样写一条可信的学习记录</a><a href="#share">检查并生成分享包</a></aside>
+<main id="content"><article><div class="eyebrow">KEEP LEARNING / 扩展与分享</div><h1>把下一步，也写成一个案例</h1><p class="lead">留下可运行的版本，也留下你怎样走到这一步。</p>
+<div class="meta"><span class="pill">ESP32 / WROOM</span><span class="pill">MicroPython 1.29.0</span><span class="pill">实做记录 + 复现步骤</span></div><section id="pattern"><h2>每个案例保留同一种结构</h2><p>一个案例解决一个可以观察的小问题。教程与源码放在同一目录，编号递增。旧案例保留，方便后来的人从头复现。</p><pre data-copy><code class="language-text">examples/
+  01-led-blink/
+    index.html
+    main.py
+    case.json
+  02-wifi-led/
+    index.html
+    main.py
+    case.json
+    wifi_config.example.py
+  03-your-next-case/
+    ...</code></pre><p>建议按“要做什么 → 前置条件与接线 → 核心原理 → 修改和上传 → 预期结果 → 我的过程 → 排错 → 练习”写。日期、平台和验证范围都要明确。</p></section><section id="new"><h2>从模板开始下一篇</h2><ol><li>复制 <code>templates/case/</code> 到 <code>examples/03-your-next-case/</code>。</li><li>修改 HTML 的标题、目标、接线、步骤与记录，替换 TODO。</li><li>实现 main.py，保持清晰的小程序；配置秘密放在 config/，公开目录中只提供 example 模板。</li><li>更新 case.json 中的文件清单，文件名映射明确指向板上根目录。</li><li>在首页增加案例卡片，并修改上一案例的“下一篇”导航。</li><li>先检查、再部署，保存实际结果。未验证的教程保留“草稿”标识。</li></ol><p><a href="../templates/case/index.html">查看案例模板</a>。上传工具可识别新目录编号，不需要修改硬编码的案例列表。</p><pre data-copy><code class="language-bash">python scripts/device.py deploy 03 --port /dev/cu.usbserial-0001 --dry-run</code></pre><p>如果案例增加其他源文件，除部署清单外，还应把它加入分享脚本的公开文件范围，并重新检查 ZIP 内容。当前分享脚本只收录标准案例文件。</p></section><section id="records"><h2>怎样写一条可信的学习记录</h2><div class="table-wrap"><table><thead><tr><th>内容</th><th>推荐记录</th></tr></thead><tbody><tr><td>目标</td><td>这次希望哪个行为发生变化，例如亮 1 秒改为亮 0.1 秒。</td></tr><tr><td>环境</td><td>板型、固件、工具版本、接线、日期。</td></tr><tr><td>过程</td><td>关键命令、出现的错误及处理办法；凭据和私人信息脱敏。</td></tr><tr><td>证据</td><td>上传回读、HTTP 返回、现场肉眼观察分别说明；不要相互替代。</td></tr><tr><td>未完成</td><td>断网恢复、其他板型、跨系统等未实测的部分直接标明。</td></tr></tbody></table></div><p>本项目根目录的 task_plan.md、findings.md、progress.md 用于维护项目和接续工作，学习者阅读 HTML 即可。分享包不收录这些本地工作记录。</p></section><section id="share"><h2>检查并生成分享包</h2><pre data-copy><code class="language-bash">python -m unittest discover -s tests -v
+python scripts/check_tutorial.py
+python scripts/package_tutorial.py</code></pre><p>生成 <code>dist/esp32-learning-tutorial.zip</code>。它采用明确的公开文件范围，只包含 HTML、样式、示例代码、依赖和工具。不会打包 config/wifi_config.py、.venv、backups、固件镜像或本地日志。</p><p>把 ZIP 发给其他学习者，他们解压后打开 <code>esp32-learning/index.html</code>，按环境准备重新建立自己的开发环境与 Wi-Fi 配置。不要直接压缩整个工作目录分享。</p></section><nav class="pager" aria-label="章节导航"><a href="../examples/02-wifi-led/index.html">← 案例 02</a><a href="../index.html">返回教程首页 →</a></nav></article></main></div>
+<footer class="footer"><span>个人学习记录 · MicroPython 实践</span><span>记录于 2026.10.27 · HTML 可离线阅读</span></footer></body></html>

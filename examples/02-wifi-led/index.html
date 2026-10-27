@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="从第一个 LED 到 Wi-Fi 网页控制：记录个人学习过程，提供可复现的 ESP32 MicroPython 案例。">
+<title>在网页上，开关这盏灯 · ESP32 学习手记</title><link rel="stylesheet" href="../../docs/assets/tutorial.css">
+<script defer src="../../docs/assets/tutorial.js"></script></head><body>
+<a class="skip" href="#content">跳到正文</a>
+<header class="topbar"><a class="brand" href="../../index.html"><span>E32</span> ESP32 学习手记</a>
+<nav aria-label="主导航"><a href="../../docs/setup.html">环境准备</a><a href="../../index.html#cases">案例目录</a><a href="../../docs/contributing.html">记录新案例</a></nav></header>
+<div class="layout"><aside class="sidebar" aria-label="本页目录"><p>本页目录</p><a href="#goal">从自动闪烁，到主动控制</a><a href="#files">程序与配置放在哪里</a><a href="#configure">1. 填写 2.4 GHz Wi-Fi</a><a href="#deploy">2. 上传并查看访问地址</a><a href="#browser">3. 用浏览器控制</a><a href="#principle">请求怎样变成电平</a><a href="#check">验收与排错</a><a href="#journal">我的学习记录与下一步</a></aside>
+<main id="content"><article><div class="eyebrow">CASE 02 / Wi-Fi 与 HTTP</div><h1>在网页上，开关这盏灯</h1><p class="lead">把 LED 的控制权交给浏览器，理解一个最小的物联网交互过程。</p>
+<div class="meta"><span class="pill">ESP32 / WROOM</span><span class="pill">MicroPython 1.29.0</span><span class="pill">实做记录 + 复现步骤</span></div><section id="goal"><h2>从自动闪烁，到主动控制</h2><p>沿用案例 01 的 D2 / GPIO2 和 LED 接线。ESP32 开机后默认熄灭，接入路由器，运行一个 HTTP 服务。浏览器打开它的 IP 地址，点击“点亮”或“熄灭”即可控制。</p><div class="diagram"><div class="flow"><div class="node">电脑 / 手机<small>浏览器按钮</small></div><span class="arrow">↔</span><div class="node">同一路由器<small>局域网互通</small></div><span class="arrow">↔</span><div class="node">ESP32<small>HTTP → GPIO2 → LED</small></div></div><div class="caption">网页由 ESP32 提供。运行时电脑不需要启动网站服务器；ESP32 需要持续供电。</div></div><p>前置步骤：完成案例 01；准备一个 ESP32 可连接的 2.4 GHz Wi-Fi 网络。</p></section><section id="files"><h2>程序与配置放在哪里</h2><div class="table-wrap"><table><thead><tr><th>文件</th><th>用途 / 是否上传</th></tr></thead><tbody><tr><td><a href="main.py" download><code>examples/02-wifi-led/main.py</code></a></td><td>连接 Wi-Fi、网页、HTTP 请求处理；上传为板上 main.py。</td></tr><tr><td><a href="wifi_config.example.py" download><code>wifi_config.example.py</code></a></td><td>公开配置模板，不放真实密码。</td></tr><tr><td><code>config/wifi_config.py</code></td><td>电脑上的私人配置，上传为板上 wifi_config.py。</td></tr><tr><td><code>case.json</code></td><td>电脑上传工具读取的文件清单，不传到开发板。</td></tr></tbody></table></div><p>你当前阅读的是教程 HTML。板上控制页面在 <code>main.py</code> 的 <code>PAGE</code> 字符串里；修改控制页面后需要重新上传程序。</p></section><section id="configure"><h2>1. 填写 2.4 GHz Wi-Fi</h2><p>首次配置时，在编辑器里把 <code>examples/02-wifi-led/wifi_config.example.py</code> 复制到 <code>config/</code>，重命名为 <code>wifi_config.py</code>。已有配置则直接编辑，避免覆盖。</p><pre data-copy><code class="language-python">WIFI_SSID = &quot;你的2.4GHz网络名称&quot;
+WIFI_PASSWORD = &quot;你的Wi-Fi密码&quot;</code></pre><p>文件保留普通 Python 字符串赋值。若密码中含引号或反斜杠，按 Python 字符串语法转义。真实密码留在本地配置中，不写进教程。</p><div class="note"><strong>电脑与 ESP32 可以使用不同频段</strong><p>本次 ESP32 仅能使用 2.4 GHz。电脑可继续连接同一路由器的 5 GHz 网络，只要路由器允许设备互通。网络名带“5G”不等于扫描证明；实际以开发板能看到的网络为准。</p></div><details><summary>可选：用开发板扫描附近网络</summary><pre data-copy><code class="language-bash">python -m mpremote connect /dev/cu.usbserial-0001 exec &quot;import network; w=network.WLAN(network.WLAN.IF_STA); w.active(True); print([(x[0], x[2], x[3]) for x in w.scan()])&quot;</code></pre><p>输出为网络名、信道和信号强度。这个命令会中断当前程序，之后需重新部署或重启。</p></details></section><section id="deploy"><h2>2. 上传并查看访问地址</h2><pre data-copy><code class="language-bash">python scripts/device.py ports
+python scripts/device.py deploy 02 --port /dev/cu.usbserial-0001 --repl</code></pre><p>配置文件会先上传，启动脚本最后替换。工具验证文件哈希后重启，<code>--repl</code> 让终端保持连接，便于看到启动信息：</p><pre data-copy><code class="language-text">Connecting to Wi-Fi...
+Open in browser: http://192.168.1.123/</code></pre><p><strong>192.168.1.123 只是示例，必须使用你自己的串口输出地址。</strong> 若错过启动信息，在 REPL 按 Ctrl-C 后按 Ctrl-D，再观察启动输出。Ctrl-] 退出终端。</p><details><summary>底层 mpremote 上传命令</summary><pre data-copy><code class="language-bash">python -m mpremote connect /dev/cu.usbserial-0001 fs cp config/wifi_config.py :wifi_config.py
+python -m mpremote connect /dev/cu.usbserial-0001 fs cp examples/02-wifi-led/main.py :main.py
+python -m mpremote connect /dev/cu.usbserial-0001 reset + repl</code></pre><p>这组命令直接覆盖文件，不包含统一工具的备份和哈希校验。</p></details></section><section id="browser"><h2>3. 用浏览器控制</h2><ol><li>电脑或手机连接到允许与 ESP32 互通的局域网。</li><li>在浏览器地址栏输入串口打印的 <code>http://设备IP/</code>。</li><li>点击“点亮”，确认网页状态变化，并观察真实 LED。</li><li>点击“熄灭”，重复检查；刷新页面应显示当前 GPIO 状态。</li></ol><p>这个入门页面没有自动轮询：另一台设备改变状态后，刷新才会同步显示。设备重启后默认熄灭，IP 由 DHCP 分配，可能改变。</p><div class="note amber"><p>此案例面向可信局域网，没有登录验证或 HTTPS；局域网中能访问它的设备都可以控制 LED。不要将 80 端口直接映射到互联网。</p></div></section><section id="principle"><h2>请求怎样变成电平</h2><div class="table-wrap"><table><thead><tr><th>请求</th><th>作用</th></tr></thead><tbody><tr><td><code>GET /</code></td><td>读取 GPIO2 电平，生成带状态文字的 HTML。</td></tr><tr><td><code>POST /on</code></td><td>GPIO2 写 1，再返回 303 跳转到首页。</td></tr><tr><td><code>POST /off</code></td><td>GPIO2 写 0，再返回 303 跳转到首页。</td></tr><tr><td><code>GET /api/state</code></td><td>返回 JSON，如 {"on":true}，供测试或其他客户端读取。</td></tr></tbody></table></div><p><code>connect_wifi()</code> 负责联网，最长等待约 30 秒；<code>main()</code> 在 80 端口接受连接；<code>handle()</code> 读取请求并控制引脚；<code>respond()</code> 写入 HTTP 响应头和 UTF-8 页面。POST 后跳转首页，刷新时就不会重复提交上一次开关动作。</p><p>程序每次处理一个客户端，请求读取超时为 3 秒，请求头最多约 2 KB。它适合学习和少量局域网控制；如果 Wi-Fi 长时间断开，重连超时会结束程序，需要检查网络并重启。</p><details><summary>展开完整 main.py</summary><pre data-copy><code class="language-python">&quot;&quot;&quot;ESP32 D2 / GPIO2 web LED control.&quot;&quot;&quot;
+import network
+import socket
+import time
+from machine import Pin
+from wifi_config import WIFI_SSID, WIFI_PASSWORD
+
+led = Pin(2, Pin.OUT, value=0)
+PAGE = &#x27;&#x27;&#x27;&lt;!doctype html&gt;&lt;html lang=&quot;zh-CN&quot;&gt;&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;title&gt;ESP32 LED&lt;/title&gt;&lt;style&gt;
+body{font-family:system-ui;background:#edf2f7;display:grid;place-items:center;min-height:90vh;color:#182b44}
+main{background:white;padding:36px;border-radius:24px;text-align:center;width:min(78vw,360px)}
+button{font-size:20px;padding:16px 28px;margin:8px;border:0;border-radius:12px;background:#1769e0;color:white;cursor:pointer}
+.lamp{width:64px;height:64px;border-radius:50%%;background:%s;margin:24px auto}
+p{color:#52647c}&lt;/style&gt;&lt;main&gt;&lt;h1&gt;ESP32 LED&lt;/h1&gt;&lt;p&gt;D2 · GPIO2&lt;/p&gt;
+&lt;div class=&quot;lamp&quot;&gt;&lt;/div&gt;&lt;h2&gt;当前状态：%s&lt;/h2&gt;
+&lt;form method=&quot;post&quot; action=&quot;/on&quot; style=&quot;display:inline&quot;&gt;&lt;button&gt;点亮&lt;/button&gt;&lt;/form&gt;
+&lt;form method=&quot;post&quot; action=&quot;/off&quot; style=&quot;display:inline&quot;&gt;&lt;button style=&quot;background:#49576a&quot;&gt;熄灭&lt;/button&gt;&lt;/form&gt;
+&lt;p&gt;连接同一局域网即可控制&lt;/p&gt;&lt;/main&gt;&lt;/html&gt;&#x27;&#x27;&#x27;
+
+
+def connect_wifi():
+    if not WIFI_SSID:
+        raise ValueError(&#x27;Fill in wifi_config.py first&#x27;)
+    wlan = network.WLAN(network.WLAN.IF_STA)
+    wlan.active(True)
+    wlan.config(reconnects=-1)
+    if not wlan.isconnected():
+        print(&#x27;Connecting to Wi-Fi...&#x27;)
+        wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+    start = time.ticks_ms()
+    while not wlan.isconnected():
+        if time.ticks_diff(time.ticks_ms(), start) &gt; 30000:
+            status = wlan.status()
+            wlan.disconnect()
+            raise RuntimeError(&#x27;Wi-Fi timeout; check 2.4 GHz SSID/password. Status: %s&#x27; % status)
+        time.sleep_ms(200)
+    print(&#x27;Open in browser: http://%s/&#x27; % wlan.ifconfig()[0])
+    return wlan
+
+
+def respond(client, status, body=&#x27;&#x27;, content_type=&#x27;text/html; charset=utf-8&#x27;, extra=&#x27;&#x27;):
+    body = body.encode(&#x27;utf-8&#x27;)
+    header = (&#x27;HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n&#x27;
+              &#x27;Connection: close\r\nCache-Control: no-store\r\n%s\r\n&#x27;
+              % (status, content_type, len(body), extra))
+    client.write(header.encode(&#x27;utf-8&#x27;))
+    client.write(body)
+
+
+def handle(client):
+    client.settimeout(3)
+    request = b&#x27;&#x27;
+    while b&#x27;\r\n\r\n&#x27; not in request:
+        chunk = client.recv(256)
+        if not chunk:
+            return
+        request += chunk
+        if len(request) &gt; 2048:
+            respond(client, &#x27;431 Request Header Fields Too Large&#x27;)
+            return
+    parts = request.split(b&#x27;\r\n&#x27;, 1)[0].split()
+    if len(parts) != 3:
+        respond(client, &#x27;400 Bad Request&#x27;)
+        return
+    method, path, _ = parts
+    if method == b&#x27;POST&#x27; and path in (b&#x27;/on&#x27;, b&#x27;/off&#x27;):
+        led.value(1 if path == b&#x27;/on&#x27; else 0)
+        respond(client, &#x27;303 See Other&#x27;, extra=&#x27;Location: /\r\n&#x27;)
+    elif method == b&#x27;GET&#x27; and path == b&#x27;/&#x27;:
+        on = bool(led.value())
+        respond(client, &#x27;200 OK&#x27;, PAGE % (&#x27;#ffcb45&#x27; if on else &#x27;#c9d2de&#x27;, &#x27;点亮&#x27; if on else &#x27;熄灭&#x27;))
+    elif method == b&#x27;GET&#x27; and path == b&#x27;/api/state&#x27;:
+        respond(client, &#x27;200 OK&#x27;, &#x27;{&quot;on&quot;:%s}&#x27; % (&#x27;true&#x27; if led.value() else &#x27;false&#x27;), &#x27;application/json&#x27;)
+    else:
+        respond(client, &#x27;404 Not Found&#x27;, &#x27;Not found&#x27;)
+
+
+def main():
+    wlan = connect_wifi()
+    server = socket.socket()
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((&#x27;0.0.0.0&#x27;, 80))
+    server.listen(2)
+    server.settimeout(1)
+    try:
+        while True:
+            if not wlan.isconnected():
+                connect_wifi()
+            try:
+                client, _ = server.accept()
+            except OSError:
+                continue
+            try:
+                handle(client)
+            except OSError as error:
+                print(&#x27;Client error:&#x27;, error)
+            finally:
+                client.close()
+    finally:
+        server.close()
+        led.value(0)
+
+
+if __name__ == &#x27;__main__&#x27;:
+    main()</code></pre></details></section><section id="check"><h2>验收与排错</h2><ul class="checklist"><li><label><input type="checkbox">串口显示一个有效的局域网地址。</label></li><li><label><input type="checkbox">浏览器能加载页面。</label></li><li><label><input type="checkbox">点亮 / 熄灭同时改变页面状态和真实 LED。</label></li><li><label><input type="checkbox">重新供电后自动联网，默认熄灭。</label></li></ul><div class="table-wrap"><table><thead><tr><th>问题</th><th>先检查什么</th></tr></thead><tbody><tr><td>Wi-Fi timeout</td><td>SSID / 密码是否正确、网络是否为 2.4 GHz、信号与路由器是否正常；修正后重启。</td></tr><tr><td>有 IP，但网页打不开</td><td>地址使用 http://；电脑能否访问同一局域网、是否处于访客网络或 AP 隔离；检查 VPN / 代理对局域网的影响。</td></tr><tr><td>网页变化，灯没有变化</td><td>GPIO 电平不等于物理亮度传感器；回到案例 01 核对引脚、接线和有效电平。本案例按高电平点亮。</td></tr><tr><td>重启后旧地址失效</td><td>查看串口的新 IP；后续可学习路由器 DHCP 地址保留。</td></tr><tr><td>切回案例 01 后网页消失</td><td>案例切换替换了板上 main.py，属于预期行为。重新 deploy 02 恢复网页。</td></tr></tbody></table></div></section><section id="journal"><h2>我的学习记录与下一步</h2><p><strong>2026-10-27：</strong>第一步的 LED 点亮完成后，我希望电脑和开发板加入同一 Wi-Fi，再从网页开关 LED。最初提供的是 5 GHz 网络名；ESP32 实际扫描到了同一路由器的 2.4 GHz 网络，于是改用它连接。</p><p>将凭据放在本地配置文件后，上传并重启成功，串口输出局域网地址。电脑依次请求页面、发送点亮和熄灭指令，读取状态分别为 true 和 false；随后本人确认实际网页控制可用。</p><div class="note"><strong>验证边界</strong><p>上述联网、HTTP 测试和现场确认发生在目录重组之前。本次迁移保留案例 02 程序内容，没有据此声称重新完成硬件测试。私人网络名称、密码和设备地址没有写入公开教程。</p></div><p>下一次练习可以选择一个方向：添加“闪烁”按钮，或在页面显示运行时长。为这个变化创建新案例，记录它相对案例 02 增加了什么。</p><p class="references">参考：<a href="https://docs.micropython.org/en/v1.29.0/esp32/quickref.html#wlan">ESP32 WLAN</a> · <a href="https://docs.micropython.org/en/v1.29.0/library/socket.html">MicroPython socket</a>。</p></section><nav class="pager" aria-label="章节导航"><a href="../01-led-blink/index.html">← 案例 01：点亮 LED</a><a href="../../docs/contributing.html">记录下一个案例 →</a></nav></article></main></div>
+<footer class="footer"><span>个人学习记录 · MicroPython 实践</span><span>记录于 2026.10.27 · HTML 可离线阅读</span></footer></body></html>

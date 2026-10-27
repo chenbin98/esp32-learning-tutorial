@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+backups/
+
+wifi_config.py
+dist/
+*.bin
+.DS_Store
+*.log
+findings.md
+progress.md
+task_plan.md

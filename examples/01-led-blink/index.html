@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="从第一个 LED 到 Wi-Fi 网页控制：记录个人学习过程，提供可复现的 ESP32 MicroPython 案例。">
+<title>点亮第一盏 LED · ESP32 学习手记</title><link rel="stylesheet" href="../../docs/assets/tutorial.css">
+<script defer src="../../docs/assets/tutorial.js"></script></head><body>
+<a class="skip" href="#content">跳到正文</a>
+<header class="topbar"><a class="brand" href="../../index.html"><span>E32</span> ESP32 学习手记</a>
+<nav aria-label="主导航"><a href="../../docs/setup.html">环境准备</a><a href="../../index.html#cases">案例目录</a><a href="../../docs/contributing.html">记录新案例</a></nav></header>
+<div class="layout"><aside class="sidebar" aria-label="本页目录"><p>本页目录</p><a href="#goal">这一课要做成什么</a><a href="#wiring">接线与引脚</a><a href="#code">阅读完整程序</a><a href="#upload">上传并运行</a><a href="#check">验收与修改</a><a href="#journal">我的学习记录</a><a href="#debug">不亮时从哪里查</a></aside>
+<main id="content"><article><div class="eyebrow">CASE 01 / GPIO 与第一次上传</div><h1>点亮第一盏 LED</h1><p class="lead">从两行高低电平控制，开始建立“修改 → 上传 → 观察”的开发习惯。</p>
+<div class="meta"><span class="pill">ESP32 / WROOM</span><span class="pill">MicroPython 1.29.0</span><span class="pill">实做记录 + 复现步骤</span></div><section id="goal"><h2>这一课要做成什么</h2><p>让 D2 上的 LED 亮 1 秒、灭 1 秒，持续循环。完成后，你会知道如何控制 GPIO、如何改变节奏，以及怎样把修改后的脚本上传到开发板。</p><div class="diagram"><div class="timing"><span class="on">0–1 s<br>亮</span><span>1–2 s<br>灭</span><span class="on">2–3 s<br>亮</span><span>3–4 s<br>灭</span><span class="on">4–5 s<br>亮</span><span>5–6 s<br>灭</span></div><div class="caption">每 1 秒切换一次；一次完整的亮灭周期为 2 秒。</div></div><p>前置步骤：完成 <a href="../../docs/setup.html">环境准备</a>，确认串口可见、板上已经安装 MicroPython。</p></section><section id="wiring"><h2>接线与引脚</h2><p>本开发板 D2 对应 GPIO2。若板载 LED 已连接到 GPIO2，可直接使用。其他板子的板载灯可能连接到不同引脚，或是 RGB LED，需先查引脚图。</p><div class="diagram"><div class="flow"><div class="node">D2 / GPIO2<small>输出高低电平</small></div><span class="arrow">→</span><div class="node">330 Ω 电阻<small>串联限流</small></div><span class="arrow">→</span><div class="node">LED 正极 → 负极<small>负极接 GND</small></div></div><div class="caption">外接普通指示 LED 的逻辑接线示意；断电接线，GPIO 使用 3.3 V 逻辑。</div></div><p>此接法高电平点亮，代码设 <code>LED_ON = 1</code>。低电平点亮的板载 LED 应改为 <code>LED_ON = 0</code>。</p></section><section id="code"><h2>阅读完整程序</h2><p>文件：<a href="main.py" download><code>examples/01-led-blink/main.py</code>（下载）</a>。电脑端案例名称保留在目录中，上传到板上时统一叫 <code>main.py</code>。</p><pre data-copy><code class="language-python">&quot;&quot;&quot;案例 01：D2 / GPIO2 LED 亮 1 秒，灭 1 秒。&quot;&quot;&quot;
+from machine import Pin
+from time import sleep
+
+LED_PIN = 2             # 本板 D2 对应 GPIO2；其他板请核对引脚图
+LED_ON = 1              # 高电平点亮；低电平点亮的 LED 改为 0
+INTERVAL_SECONDS = 1    # 每次亮 / 灭持续的时间，完整周期为它的两倍
+
+led = Pin(LED_PIN, Pin.OUT, value=1 - LED_ON)
+
+try:
+    while True:
+        led.value(LED_ON)
+        sleep(INTERVAL_SECONDS)
+        led.value(1 - LED_ON)
+        sleep(INTERVAL_SECONDS)
+finally:
+    led.value(1 - LED_ON)</code></pre><div class="table-wrap"><table><thead><tr><th>代码</th><th>含义</th></tr></thead><tbody><tr><td><code>Pin(..., Pin.OUT)</code></td><td>把 GPIO 配置成数字输出，初始电平设为熄灭。</td></tr><tr><td><code>led.value(...)</code></td><td>给引脚写入 0 或 1。实际灯的亮灭取决于接线和有效电平。</td></tr><tr><td><code>sleep(1)</code></td><td>暂停约 1 秒；在这个入门案例中使用阻塞延时。</td></tr><tr><td><code>finally</code></td><td>正常中断循环时尝试把灯关掉；断电和硬复位不依靠此语句执行。</td></tr></tbody></table></div></section><section id="upload"><h2>上传并运行</h2><p>在项目根目录激活环境，再确认串口名称：</p><pre data-copy><code class="language-bash">source .venv/bin/activate
+python scripts/device.py ports
+python scripts/device.py deploy 01 --port /dev/cu.usbserial-0001</code></pre><p>工具会检查文件、备份板上同名文件、上传临时文件并校验 SHA-256，成功后替换启动文件并重启。它不会擦除 MicroPython 固件。</p><details><summary>理解底层操作：不用封装工具怎么上传？</summary><pre data-copy><code class="language-bash">python -m mpremote connect /dev/cu.usbserial-0001 fs cp examples/01-led-blink/main.py :main.py
+python -m mpremote connect /dev/cu.usbserial-0001 reset</code></pre><p>这组命令直接覆盖板上 main.py，不包含教程工具提供的备份和哈希校验。</p></details><p>如果之前运行的是 Wi-Fi 案例，此操作会切换到闪烁案例，网页服务随之停止。切回案例 02 时再次部署即可。</p></section><section id="check"><h2>验收与修改</h2><ul class="checklist"><li><label><input type="checkbox">上传工具报告文件校验通过。</label></li><li><label><input type="checkbox">现场观察 LED 亮 1 秒、灭 1 秒。</label></li><li><label><input type="checkbox">按 EN 或重新供电后，程序自动开始。</label></li><li><label><input type="checkbox">改为 0.1 秒并重新上传，闪烁明显加快。</label></li></ul><p>修改 <code>INTERVAL_SECONDS</code> 后，保存并重复同一条部署命令。不要直接在普通 Python 解释器里运行这个文件。</p><p>想中断程序，执行下面的终端命令，然后按 Ctrl-C；Ctrl-D 软重启，Ctrl-] 退出终端：</p><pre data-copy><code class="language-bash">python scripts/device.py repl --port /dev/cu.usbserial-0001</code></pre></section><section id="journal"><h2>我的学习记录</h2><p><strong>2026-10-27：</strong>第一步先识别出 ESP32-D0WD-V3 和 4 MB Flash，安装 MicroPython 1.29.0。固件写入通过哈希校验，程序上传后回读一致。</p><p>在板上执行闪烁程序并采样 GPIO2，切换时刻约为 15、1029、2032、3035、4038 ms，符合约 1 秒切换一次。随后尝试把延时改为 0.1 秒，认识到“改代码”和“重新上传”是两个步骤。</p><p>中间遇到 USB 串口消失，导致修改后无法上传。最终恢复连接，完成了 LED 实际点亮，学习者本人已确认效果。</p><div class="note"><strong>记录边界</strong><p>上述为首次实践与本会话的历史记录。教程标准代码恢复为 1 秒，并增加了引脚与有效电平常量；本次整理后的版本做本地检查，现场亮灭请按上面的清单自行验收。</p></div></section><section id="debug"><h2>不亮时从哪里查</h2><div class="table-wrap"><table><thead><tr><th>现象</th><th>检查顺序</th></tr></thead><tbody><tr><td>有上传成功提示但灯不亮</td><td>确认 D2 是否为 GPIO2 → 是否确有 LED 接在该引脚 → 正负极与电阻 → LED_ON 的有效电平。</td></tr><tr><td>灯一直亮或一直灭</td><td>核对改动后的文件是否保存、是否上传了案例 01、是否重启。</td></tr><tr><td>上传报串口访问失败</td><td>运行 ports；看不到设备则检查 USB 数据连接，看到设备则检查占用。</td></tr><tr><td>出现 traceback</td><td>连接 REPL 查看异常行号，修正脚本后重新部署。</td></tr></tbody></table></div><p>延伸练习：把亮和灭的持续时间拆成两个常量，实现“亮 0.2 秒、灭 1.8 秒”。记录预期周期与实际现象。</p><p class="references">参考：<a href="https://docs.micropython.org/en/v1.29.0/esp32/quickref.html#pins-and-gpio">MicroPython GPIO 与引脚</a>。</p></section><nav class="pager" aria-label="章节导航"><a href="../../docs/setup.html">← 环境准备</a><a href="../02-wifi-led/index.html">案例 02：Wi-Fi 网页控制 →</a></nav></article></main></div>
+<footer class="footer"><span>个人学习记录 · MicroPython 实践</span><span>记录于 2026.10.27 · HTML 可离线阅读</span></footer></body></html>

@@ -1,0 +1,5 @@
+{
+  "title": "通过 Wi-Fi 网页控制 LED",
+  "files": {"main.py": "main.py"},
+  "config": {"wifi_config.py": "wifi_config.py"}
+}

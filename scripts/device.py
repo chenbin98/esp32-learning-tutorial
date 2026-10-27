@@ -100,7 +100,7 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ports", help="列出系统当前串口")
     upload = commands.add_parser("deploy", help="备份、上传、校验并重启一个案例")
-    upload.add_argument("case", help="01、02 或完整案例目录名")
+    upload.add_argument("case", help="01、02、03 或完整案例目录名")
     upload.add_argument("--port", required=True, help="例如 /dev/cu.usbserial-0001 或 COM3")
     upload.add_argument("--dry-run", action="store_true", help="仅检查文件并预览上传路径")
     upload.add_argument("--repl", action="store_true", help="重启后进入串口终端；Ctrl-] 退出")

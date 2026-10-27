@@ -19,3 +19,12 @@
 - Windows / Linux 说明尚未实机验证。
 - 新上传工具的设备交互通过模拟测试，未在本次重组中重新部署到 ESP32；原硬件案例的成功属于之前的实测与用户确认。
 - 未实测弱信号、长时间断网和多设备并发；案例 02 连接超时会结束程序，需人工处理后重启。
+
+
+## 案例 03 BLE 实现状态
+
+- 基于已安装的 MicroPython v1.29.0 低层 Bluetooth API，设备名 ESP32-LED-03，服务 FFF0、可读写状态特征值 FFF1。
+- 手机操作说明使用 Nordic Semiconductor 的 nRF Connect for Mobile（Android / iOS）；写入 on/off，读回状态。
+- 2026-10-27 已通过 USB 串口启动案例 03；观察到 `BLE ready; scan for ESP32-LED-03`、FFF0 服务和 FFF1 特征值的启动输出。
+- 尚未由真实手机连接、写入开关并观察 LED，因此手机控制效果仍待实测，不标记为完整硬件验收。
+- 蓝牙特征值未设配对认证；仅用于可信的学习环境。

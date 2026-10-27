@@ -1,0 +1,87 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="用 nRF Connect 手机 App 通过 BLE GATT 写入 ESP32 指令，控制 GPIO2 LED。"><title>用手机蓝牙控制 LED · ESP32 学习手记</title><link rel="stylesheet" href="../../docs/assets/tutorial.css"><script defer src="../../docs/assets/tutorial.js"></script></head><body><a class="skip" href="#content">跳到正文</a><header class="topbar"><a class="brand" href="../../index.html"><span>E32</span> ESP32 学习手记</a><nav aria-label="主导航"><a href="../../docs/setup.html">环境准备</a><a href="../../index.html#cases">案例目录</a><a href="../../docs/contributing.html">记录新案例</a></nav></header><div class="layout"><aside class="sidebar" aria-label="本页目录"><p>本页目录</p><a href="#goal">这一课要做什么</a><a href="#prepare">手机和电脑要准备什么</a><a href="#protocol">先认清服务和特征值</a><a href="#code">阅读并部署程序</a><a href="#upload">上传到 ESP32</a><a href="#phone">用手机连接和控制</a><a href="#verify">验收和排错</a><a href="#journal">我的学习记录</a></aside><main id="content"><article><div class="eyebrow">CASE 03 / BLE 与 GATT</div><h1>用手机蓝牙，开关这盏灯</h1><p class="lead">手机扫描并连接 ESP32，向一个 GATT 特征值写入指令，直接控制 GPIO2。</p><div class="meta"><span class="pill">Bluetooth LE</span><span class="pill">MicroPython 1.29.0</span><span class="pill">手机 BLE 工具</span><span class="pill">待手机端实测</span></div><section id="goal"><h2>这一课要做什么</h2><p>让手机发现 ESP32 的 BLE 设备，连接后向一个 GATT 特征值写入 <code>on</code> 或 <code>off</code>，控制 D2 / GPIO2 上的 LED。开发板不需要加入 Wi-Fi；手机通过蓝牙直接连接。</p><div class="diagram"><div class="flow"><div class="node">手机上的 nRF Connect<small>BLE Central / GATT Client</small></div><span class="arrow">↔ BLE</span><div class="node">ESP32-LED-03<small>BLE Peripheral / GATT Server</small></div><span class="arrow">→</span><div class="node">D2 / GPIO2<small>LED on / off</small></div></div><div class="caption">手机写入命令，ESP32 收到 GATT 写事件，再改变 GPIO 电平。</div></div><p>前置步骤：先完成案例 01，确认 LED 和 D2 / GPIO2 工作正常。案例 03 部署后会取代板上正在运行的 main.py；重新部署案例 02 即可回到 Wi-Fi 网页控制。</p></section><section id="prepare"><h2>手机和电脑要准备什么</h2><ul><li>ESP32 已安装 MicroPython 1.29.0，并通过 USB 串口连到电脑。</li><li>iPhone 或 Android 手机，开启蓝牙。</li><li>安装 <a href="https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-mobile">nRF Connect for Mobile</a>。它可扫描 BLE 设备、查看 GATT 服务与特征值，并写入特征值。</li><li>LED 接在 D2 / GPIO2；如果是外接 LED，沿用案例 01 的限流电阻接法。</li></ul><p>案例使用 MicroPython 内置 <code>bluetooth</code> 模块，不需 pip 安装蓝牙包。它实现 BLE，不实现经典蓝牙 SPP 串口。这个案例选 BLE 是为了沿用当前 MicroPython 固件并直接用手机跨平台 GATT 工具连接。</p></section><section id="protocol"><h2>先认清服务和特征值</h2><div class="table-wrap"><table><thead><tr><th>项目</th><th>本案例的值</th><th>作用</th></tr></thead><tbody><tr><td>广播设备名</td><td><code>ESP32-LED-03</code></td><td>在手机扫描结果中识别这块板。</td></tr><tr><td>GATT 服务</td><td><code>FFF0</code></td><td>将本学习案例的 LED 控制功能分组。</td></tr><tr><td>GATT 特征值</td><td><code>FFF1</code></td><td>可读、可写；手机从这里写开关命令。</td></tr><tr><td>点亮命令</td><td>文本 <code>on</code></td><td>GPIO2 输出高电平，特征值读回 <code>on</code>。</td></tr><tr><td>熄灭命令</td><td>文本 <code>off</code></td><td>GPIO2 输出低电平，特征值读回 <code>off</code>。</td></tr></tbody></table></div><p>UUID 的完整形式如下。手机 App 中可能只显示短格式 <code>FFF0</code>、<code>FFF1</code>，也可能显示完整 UUID。</p><pre data-copy><code class="language-text">SERVICE     0000fff0-0000-1000-8000-00805f9b34fb
+LED STATE   0000fff1-0000-1000-8000-00805f9b34fb</code></pre><p>ESP32 是 GATT Server，维护 LED 当前特征值；手机是 GATT Client，读取或写入这个值。这是 BLE 应用层交互，并非操作系统里的传统“配对后虚拟串口”。</p></section><section id="code"><h2>阅读并部署程序</h2><p>源码：<a href="main.py" download><code>examples/03-bluetooth-led/main.py</code></a>。电脑上的案例目录可以保留不同文件名，上传工具会把它装到板上的 <code>main.py</code>。</p><pre data-copy><code class="language-python">&quot;&quot;&quot;案例 03：手机通过 BLE GATT 写入指令控制 D2 / GPIO2 LED。&quot;&quot;&quot;
+import bluetooth
+import time
+from machine import Pin
+
+LED_PIN = 2
+DEVICE_NAME = &quot;ESP32-LED-03&quot;
+SERVICE_UUID = bluetooth.UUID(0xFFF0)
+LED_CHARACTERISTIC_UUID = bluetooth.UUID(0xFFF1)
+IRQ_CENTRAL_CONNECT = 1
+IRQ_CENTRAL_DISCONNECT = 2
+IRQ_GATTS_WRITE = 3
+ADV_INTERVAL_US = 100_000
+
+led = Pin(LED_PIN, Pin.OUT, value=0)
+ble = bluetooth.BLE()
+ble.active(True)
+ble.config(gap_name=DEVICE_NAME)
+
+service = (
+    SERVICE_UUID,
+    ((LED_CHARACTERISTIC_UUID, bluetooth.FLAG_READ | bluetooth.FLAG_WRITE),),
+)
+(led_state_handle,) = ble.gatts_register_services((service,))[0]
+ble.gatts_write(led_state_handle, b&quot;off&quot;)
+
+name_bytes = DEVICE_NAME.encode()
+advertisement = bytearray((2, 0x01, 0x06))
+advertisement.extend((len(name_bytes) + 1, 0x09))
+advertisement.extend(name_bytes)
+connected = False
+last_reported_connection = False
+
+
+def start_advertising():
+    ble.gap_advertise(ADV_INTERVAL_US, adv_data=advertisement)
+
+
+def on_ble_event(event, data):
+    global connected
+
+    if event == IRQ_CENTRAL_CONNECT:
+        connected = True
+    elif event == IRQ_CENTRAL_DISCONNECT:
+        connected = False
+        start_advertising()
+    elif event == IRQ_GATTS_WRITE:
+        _, value_handle = data
+        if value_handle != led_state_handle:
+            return
+
+        value = bytes(ble.gatts_read(led_state_handle))
+        command = value.strip().lower()
+        if command in (b&quot;on&quot;, b&quot;1&quot;) or value == b&quot;\x01&quot;:
+            led.on()
+            ble.gatts_write(led_state_handle, b&quot;on&quot;)
+        elif command in (b&quot;off&quot;, b&quot;0&quot;) or value == b&quot;\x00&quot;:
+            led.off()
+            ble.gatts_write(led_state_handle, b&quot;off&quot;)
+        else:
+            state = b&quot;on&quot; if led.value() else b&quot;off&quot;
+            ble.gatts_write(led_state_handle, state)
+
+
+ble.irq(on_ble_event)
+start_advertising()
+print(&quot;BLE ready; scan for %s&quot; % DEVICE_NAME)
+print(&quot;Service UUID: 0000fff0-0000-1000-8000-00805f9b34fb&quot;)
+print(&quot;LED characteristic UUID: 0000fff1-0000-1000-8000-00805f9b34fb&quot;)
+print(&quot;Write on / off; read the characteristic to check the LED state.&quot;)
+
+try:
+    while True:
+        if connected != last_reported_connection:
+            print(&quot;Phone connected&quot; if connected else &quot;Phone disconnected; advertising again&quot;)
+            last_reported_connection = connected
+        time.sleep_ms(100)
+finally:
+    ble.gap_advertise(None)
+    ble.active(False)
+    led.off()</code></pre><p>程序启动后以 <code>ESP32-LED-03</code> 名称广播。<code>gatts_register_services</code> 注册服务和特征值；BLE 收到手机写入时触发 <code>IRQ_GATTS_WRITE</code>，程序验证命令并改变 GPIO2。手机断开后，ESP32 会重新广播，等待下一次连接。</p><p><code>FFF0</code> 和 <code>FFF1</code> 是学习案例自定义 UUID。特征值未配置配对或认证，附近能连接设备的手机都可以控制 LED；只在可信的学习环境中使用。</p></section><section id="upload"><h2>上传到 ESP32</h2><p>在项目根目录执行。先确认当前 USB 串口名称，再部署案例 03：</p><pre data-copy><code class="language-bash">source .venv/bin/activate
+python scripts/device.py ports
+python scripts/device.py deploy 03 --port /dev/cu.usbserial-0001 --repl</code></pre><p>把示例端口替换为自己的端口。工具会备份板上的启动文件，上传并核对 SHA-256，然后重启进入 REPL。串口应显示类似：</p><pre data-copy><code class="language-text">BLE ready; scan for ESP32-LED-03
+Service UUID: 0000fff0-0000-1000-8000-00805f9b34fb
+LED characteristic UUID: 0000fff1-0000-1000-8000-00805f9b34fb
+Write on / off; read the characteristic to check the LED state.</code></pre><p>REPL 中按 Ctrl-] 退出。BLE 程序继续在开发板运行；若串口关掉，手机蓝牙连接仍可用。</p></section><section id="phone"><h2>用手机连接和控制</h2><ol><li>打开手机蓝牙和 nRF Connect，进入扫描页并开始扫描。</li><li>在扫描结果里找到 <code>ESP32-LED-03</code>，点击 <strong>Connect</strong>。手机若提示系统蓝牙权限，选择允许。</li><li>等待服务发现，找到服务 <code>FFF0</code>，再展开特征值 <code>FFF1</code>。</li><li>点击该特征值的写入按钮（常见图标为向上箭头）。在写入窗口选择 <strong>Text / UTF-8</strong> 模式，输入 <code>on</code> 并发送；观察 LED 点亮。</li><li>用同一个特征值发送 <code>off</code>，观察 LED 熄灭。</li><li>点击读取按钮，再读一次特征值；应分别看到 <code>on</code> 或 <code>off</code>。</li></ol><div class="note"><strong>如果 App 默认显示 Hex</strong><p>将写入格式切换到 Text / UTF-8，再输入字母 <code>on</code> 或 <code>off</code>。如果坚持使用 Hex，<code>on</code> 对应 <code>6F 6E</code>，<code>off</code> 对应 <code>6F 66 66</code>；不要把 ASCII 文本误当作单字节 01 / 00。</p></div><p>写入后如果 UI 没自动刷新，手动按 Read 查看状态。这个案例没有启用通知，因此不会自动把 GPIO 状态推送到手机。</p></section><section id="verify"><h2>验收和排错</h2><ul class="checklist"><li><label><input type="checkbox">手机扫描列表能看到 ESP32-LED-03。</label></li><li><label><input type="checkbox">可以连接并看到 FFF0 服务与 FFF1 特征值。</label></li><li><label><input type="checkbox">写入 on 后 LED 点亮，读回状态为 on。</label></li><li><label><input type="checkbox">写入 off 后 LED 熄灭，读回状态为 off。</label></li><li><label><input type="checkbox">手机断开后再次扫描，ESP32 恢复广播。</label></li></ul><div class="table-wrap"><table><thead><tr><th>现象</th><th>检查方式</th></tr></thead><tbody><tr><td>搜索不到设备</td><td>确认串口显示 BLE ready；手机蓝牙已开启；手机离板近一些；确认没有仍连接的其他手机；停止扫描再重新开始。</td></tr><tr><td>设备可连接但找不到服务</td><td>等待服务发现完成；断开并重连。如手机缓存了旧 GATT 表，关闭并重新打开 nRF Connect 后再试。</td></tr><tr><td>能写入但 LED 不变</td><td>确认选择 Text / UTF-8，写入严格为小写 on 或 off；确认连接的板子是本案例运行的设备；回到案例 01 检查 LED 接线和有效电平。</td></tr><tr><td>REPL 出现 NameError: bluetooth</td><td>先在串口确认板上是 ESP32_GENERIC 的 MicroPython 固件；ESP32-C3/S3 需要对应固件并非所有版本都支持 BLE 特性相同。</td></tr><tr><td>断开后没有重新出现</td><td>观察串口是否报告 Phone disconnected; advertising again；关闭手机连接，再重新扫描。</td></tr></tbody></table></div><p>部署案例 01 或 02 会替换板上的 BLE 程序。需要回来时重新部署案例 03。</p></section><section id="journal"><h2>我的学习记录</h2><p>案例目标：从电脑浏览器控制走到手机直连，让手机作为 BLE Central，ESP32 作为 GATT Peripheral。</p><div class="note amber"><strong>个人实测待填写</strong><p>2026-10-27 已在 ESP32 串口观察到 BLE ready、设备名 ESP32-LED-03、FFF0 服务和 FFF1 特征值。手机端连接及 on/off 控制尚待实测。完成后请补充手机型号 / 系统、App 版本、扫描结果、LED 实际现象和遇到的问题。</p></div><p>可以继续练习：增加一个只读特征值报告当前 LED 状态；再增加 Notify 特征值，让 ESP32 在改变状态时主动通知手机。</p><p class="references">参考：<a href="https://docs.micropython.org/en/v1.29.0/library/bluetooth.html">MicroPython v1.29.0 bluetooth API</a> · <a href="https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-mobile">nRF Connect for Mobile</a>。</p></section><nav class="pager" aria-label="章节导航"><a href="../02-wifi-led/index.html">← 案例 02：Wi-Fi 网页控制</a><a href="../../docs/contributing.html">记录下一个案例 →</a></nav></article></main></div><footer class="footer"><span>个人学习记录 · MicroPython 实践</span><span>案例 03 · BLE GATT</span></footer></body></html>

@@ -1,4 +1,4 @@
-"""电脑端工具：列出串口、按案例部署、进入 MicroPython REPL。"""
+"""电脑端工具：列出串口、按案例或实战项目部署、进入 MicroPython REPL。"""
 import argparse
 import ast
 from datetime import datetime
@@ -12,20 +12,44 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_case(case_id, root=ROOT):
-    matches = [p for p in (root / "examples").iterdir()
-               if p.is_dir() and (p.name == case_id or p.name.startswith(case_id + "-"))]
-    if len(matches) != 1:
-        raise ValueError("案例编号不存在或不唯一，请使用 01–04 或完整目录名。")
-    folder = matches[0]
-    manifest = json.loads((folder / "case.json").read_text(encoding="utf-8"))
+    if case_id.startswith("project-"):
+        folder_root = root / "projects"
+        matches = []
+        if folder_root.is_dir():
+            for candidate in folder_root.iterdir():
+                manifest_path = candidate / "project.json"
+                if candidate.is_dir() and manifest_path.is_file():
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    if manifest.get("id") == case_id:
+                        matches.append((candidate, manifest))
+        if len(matches) != 1:
+            raise ValueError("项目编号不存在或不唯一，请使用 project-01 或完整 project ID。")
+        folder, manifest = matches[0]
+        manifest_file = "project.json"
+    else:
+        matches = [p for p in (root / "examples").iterdir()
+                   if p.is_dir() and (p.name == case_id or p.name.startswith(case_id + "-"))]
+        if len(matches) != 1:
+            raise ValueError("案例编号不存在或不唯一，请使用 01–04 或完整目录名。")
+        folder = matches[0]
+        manifest_file = "case.json"
+        manifest = json.loads((folder / manifest_file).read_text(encoding="utf-8"))
+
     files = []
-    for section, base in (("files", folder), ("config", root / "config")):
-        for source, destination in manifest.get(section, {}).items():
+    sections = (("files", folder), ("config", root / "config"))
+    for section, base in sections:
+        entries = manifest.get(section, {})
+        if not isinstance(entries, dict):
+            raise ValueError("%s 中的 %s 必须是文件映射。" % (manifest_file, section))
+        for source, destination in entries.items():
             path = (base / source).resolve()
-            if not path.is_relative_to(base.resolve()) or Path(destination).name != destination or destination in ("", ".", ".."):
-                raise ValueError("清单中的路径必须在案例或配置目录内，目标必须是文件名。")
+            if (not path.is_relative_to(base.resolve())
+                    or not isinstance(destination, str)
+                    or Path(destination).name != destination
+                    or destination in ("", ".", "..")):
+                raise ValueError("清单中的路径必须在案例/项目或配置目录内，目标必须是文件名。")
             if not path.is_file():
-                raise ValueError("缺少文件：%s；请按案例教程准备必需的本地 Wi-Fi 配置。" % path)
+                raise ValueError("缺少文件：%s；请按教程准备必需的本地配置。" % path)
             if path.suffix == ".py":
                 try:
                     compile(path.read_bytes(), str(path), "exec")
@@ -62,7 +86,7 @@ def mpremote(port, *args, capture=False):
 
 def deploy(case_id, port, dry_run=False, repl=False):
     name, files = load_case(case_id)
-    print("案例：", name)
+    print(("实战项目：" if case_id.startswith("project-") else "案例："), name)
     for path, destination in files:
         print("  %s -> :%s" % (path.relative_to(ROOT), destination))
     if dry_run:
@@ -99,8 +123,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ports", help="列出系统当前串口")
-    upload = commands.add_parser("deploy", help="备份、上传、校验并重启一个案例")
-    upload.add_argument("case", help="01、02、03、04 或完整案例目录名")
+    upload = commands.add_parser("deploy", help="备份、上传、校验并重启一个案例或实战项目")
+    upload.add_argument("case", help="案例 01–04 或实战项目 ID（如 project-01）")
     upload.add_argument("--port", required=True, help="例如 /dev/cu.usbserial-0001 或 COM3")
     upload.add_argument("--dry-run", action="store_true", help="仅检查文件并预览上传路径")
     upload.add_argument("--repl", action="store_true", help="重启后进入串口终端；Ctrl-] 退出")

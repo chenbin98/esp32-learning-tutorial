@@ -50,6 +50,13 @@ def check():
         source = (folder / 'main.py').read_text(encoding='utf-8').strip()
         if source not in pages[(folder / 'index.html').resolve()].codes:
             errors.append(case + ' 教程完整代码与 main.py 不一致')
+    projects = ROOT / 'projects'
+    for folder in sorted(path for path in projects.iterdir()
+                         if path.is_dir() and (path / 'project.json').is_file()):
+        source = (folder / 'main.py').read_text(encoding='utf-8').strip()
+        page = pages.get((folder / 'index.html').resolve())
+        if page is None or source not in page.codes:
+            errors.append(folder.name + ' 项目完整代码与 main.py 不一致')
     for path in files:
         if path.name == 'wifi_config.py' or any(part in ('.venv', 'backups') for part in path.parts):
             errors.append('分享范围误含私人文件：' + str(path.relative_to(ROOT)))

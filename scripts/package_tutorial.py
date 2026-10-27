@@ -11,7 +11,8 @@ def public_files(root=ROOT):
     paths = {root / name for name in exact}
     for pattern in ('docs/*.html', 'docs/*.md', 'docs/assets/*.css', 'docs/assets/*.js',
                     'examples/*/index.html', 'examples/*/main.py', 'examples/*/case.json',
-                    'examples/*/*.example.py', 'scripts/*.py', 'tests/*.py',
+                    'examples/*/*.example.py', 'projects/index.html', 'projects/*/index.html',
+                    'projects/*/main.py', 'projects/*/project.json', 'scripts/*.py', 'tests/*.py',
                     'templates/case/*.html', 'templates/case/*.py', 'templates/case/*.json'):
         paths.update(root.glob(pattern))
     return sorted(p for p in paths if p.is_file() and not p.is_symlink())

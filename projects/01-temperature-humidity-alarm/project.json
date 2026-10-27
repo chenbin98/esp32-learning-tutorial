@@ -1,0 +1,6 @@
+{
+  "id": "project-01",
+  "title": "温湿度报警系统",
+  "files": {"main.py": "main.py"},
+  "config": {"wifi_config.py": "wifi_config.py"}
+}

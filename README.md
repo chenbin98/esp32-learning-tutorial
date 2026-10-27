@@ -51,13 +51,13 @@ python scripts/device.py deploy 02 --port /dev/cu.usbserial-0001 --repl
 
 启动后串口输出 `Open in browser: http://设备IP/`，用浏览器打开这个地址。Ctrl-] 退出串口终端。
 
-案例 03 使用 nRF Connect 手机 App：
+案例 03 可使用 nRF Connect for Mobile；nRF Connect for Desktop 也可控制，但需要兼容的 Nordic DK / USB Dongle 作为本地 BLE Adapter：
 
 ```bash
 python scripts/device.py deploy 03 --port /dev/cu.usbserial-0001 --repl
 ```
 
-扫描并连接 `ESP32-LED-03`，向 FFF0 服务下的 FFF1 特征值写入 `on` 或 `off`。详细步骤见案例教程。
+手机端扫描并连接 `ESP32-LED-03`，向 FFF0 服务下的 FFF1 特征值写入 `on` 或 `off`。Desktop 的 Adapter 要求和操作步骤见案例教程。
 `--dry-run` 只检查文件和显示上传路径，不连接设备。
 
 上传工具会中断板上当前程序，备份将被替换的同名文件，上传临时文件并核对 SHA-256，全部通过后替换文件、重启。选择案例会替换板上的 `main.py`；它不删除其他文件，也不擦除固件。多文件替换不是断电原子事务，异常时应修正问题并重新部署，不能把中途失败当作完成。

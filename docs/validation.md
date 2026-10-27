@@ -24,7 +24,7 @@
 ## 案例 03 BLE 实现状态
 
 - 基于已安装的 MicroPython v1.29.0 低层 Bluetooth API，设备名 ESP32-LED-03，服务 FFF0、可读写状态特征值 FFF1。
-- 手机操作说明使用 Nordic Semiconductor 的 nRF Connect for Mobile（Android / iOS）；写入 on/off，读回状态。
+- 案例保留 nRF Connect for Mobile（Android / iOS）手机说明，并新增 nRF Connect for Desktop + 兼容 Nordic DK / USB Dongle Adapter 的电脑说明。
 - 2026-10-27 已通过 USB 串口启动案例 03；观察到 `BLE ready; scan for ESP32-LED-03`、FFF0 服务和 FFF1 特征值的启动输出。
-- 尚未由真实手机连接、写入开关并观察 LED，因此手机控制效果仍待实测，不标记为完整硬件验收。
+- 手机与 Desktop 两条客户端路径均尚未完成真实连接、写入开关并观察 LED；相关控制效果待实测，不标记为完整硬件验收。
 - 蓝牙特征值未设配对认证；仅用于可信的学习环境。

@@ -11,8 +11,9 @@
 3. [案例 02：Wi-Fi 网页控制 LED](examples/02-wifi-led/index.html)：连接 2.4 GHz Wi-Fi，通过局域网网页开关 LED。
 4. [案例 03：手机 BLE 控制 LED](examples/03-bluetooth-led/index.html)：手机通过 BLE GATT 写入开关指令。
 5. [案例 04：网页温湿度监测](examples/04-temperature-humidity/index.html)：DHT11 接入 D2/GPIO2，网页自动显示温湿度。
-6. [实战项目：温湿度报警系统](projects/01-temperature-humidity-alarm/index.html)：组合案例 04 的 DHT11 网页监测和 D23 LED 报警。
-7. [记录新案例](docs/contributing.html)：模板、记录规范与分享方法。
+6. [案例 05：OLED 显示温湿度](examples/05-temperature-humidity-oled/index.html)：DHT11 接入 D2，SSD1306 OLED 使用 D18/D19 的 I²C。
+7. [实战项目：温湿度报警系统](projects/01-temperature-humidity-alarm/index.html)：组合案例 04 的 DHT11 网页监测和 D23 LED 报警。
+8. [记录新案例](docs/contributing.html)：模板、记录规范与分享方法。
 
 实测起点：macOS、Python 3.12.2、ESP32-D0WD-V3 / 4 MB Flash、MicroPython 1.29.0。其他板型先核对引脚与固件。Windows / Linux 操作差异已写入环境教程，尚未实机验证。
 
@@ -25,6 +26,7 @@ examples/
   02-wifi-led/                      独立脚本 + HTML 教程 + 配置模板 + case.json
   03-bluetooth-led/                 BLE 脚本 + HTML 教程 + case.json
   04-temperature-humidity/          DHT11 脚本 + HTML 教程 + case.json
+  05-temperature-humidity-oled/     DHT11 + SSD1306 OLED + HTML 教程 + case.json
 projects/
   index.html                         实战项目栏目入口
   01-temperature-humidity-alarm/     独立项目脚本 + 教程 + project.json

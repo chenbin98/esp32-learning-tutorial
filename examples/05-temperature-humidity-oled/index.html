@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="使用 ESP32、DHT11 和 SSD1306 OLED 显示温湿度。"><title>案例 05：OLED 显示温湿度 · ESP32 学习手记</title>
+<link rel="stylesheet" href="../../docs/assets/tutorial.css"><script defer src="../../docs/assets/tutorial.js"></script></head>
+<body><a class="skip" href="#content">跳到正文</a><header class="topbar"><a class="brand" href="../../index.html"><span>E32</span> ESP32 学习手记</a><nav aria-label="主导航"><a href="../../docs/setup.html">环境准备</a><a href="../../index.html#cases">案例目录</a><a href="../../docs/contributing.html">记录新案例</a></nav></header>
+<div class="layout"><aside class="sidebar" aria-label="本页目录"><p>本页目录</p><a href="#goal">目标与原理</a><a href="#wiring">接线</a><a href="#code">完整程序</a><a href="#deploy">上传</a><a href="#verify">验收与排错</a></aside><main id="content"><article>
+<div class="eyebrow">CASE 05 / DHT11 与 OLED</div><h1>把温湿度显示在屏幕上</h1><p class="lead">读取 DHT11，并在 I²C SSD1306 128×64 OLED 上显示温度与相对湿度。</p>
+<div class="meta"><span class="pill">DHT11 · D2 / GPIO2</span><span class="pill">I²C · D18 / D19</span><span class="pill">MicroPython</span></div>
+<section id="goal"><h2>目标与原理</h2><p>本案例沿用案例 04 的 DHT11 接法，把输出从网页改为 OLED。程序使用 ESP32 的 I²C 控制器和 MicroPython 内置 <code>framebuf</code> 绘制文本，SSD1306 驱动直接包含在 <code>main.py</code> 中，无需额外安装文件。默认显示屏为常见的 128×64 SSD1306 I²C 模块，地址通常是 <code>0x3C</code>。</p></section>
+<section id="wiring"><h2>接线</h2><div class="table-wrap"><table><thead><tr><th>模块</th><th>引脚</th><th>ESP32</th></tr></thead><tbody><tr><td>DHT11</td><td>S / DATA</td><td>D2 / GPIO2</td></tr><tr><td>DHT11</td><td>VCC、GND</td><td>按模块规格供电，GND 共地</td></tr><tr><td>OLED</td><td>SCL</td><td>D18 / GPIO18</td></tr><tr><td>OLED</td><td>SDA</td><td>D19 / GPIO19</td></tr><tr><td>OLED</td><td>VCC、GND</td><td>按模块规格供电，GND 共地</td></tr></tbody></table></div><p class="note">仅适用于 SSD1306 128×64。若模块地址为 <code>0x3D</code>，修改 <code>OLED_ADDRESS</code>。串口会打印 I²C 扫描结果；确认模块 I/O 电压兼容 ESP32 3.3V。</p></section>
+<section id="code"><h2>完整程序</h2><p>部署清单只需上传 <code>main.py</code>。DHT11 每 2.5 秒读取一次。</p><pre data-copy><code class="language-python">&quot;&quot;&quot;案例 05：将 DHT11 温湿度显示在 I2C SSD1306 OLED 上。&quot;&quot;&quot;
+import dht
+import framebuf
+import time
+from machine import I2C, Pin
+
+SENSOR_PIN = 2             # D2 / GPIO2
+I2C_SCL_PIN = 18            # D18 / GPIO18
+I2C_SDA_PIN = 19            # D19 / GPIO19
+OLED_ADDRESS = 0x3C         # 常见 SSD1306 地址；部分模块为 0x3D
+SAMPLE_INTERVAL_MS = 2500   # DHT11 采样间隔需大于 2 秒
+
+
+class SSD1306:
+    &quot;&quot;&quot;128x64 SSD1306 最小驱动，使用 MicroPython 内置 framebuf。&quot;&quot;&quot;
+    def __init__(self, i2c, address):
+        self.i2c = i2c
+        self.address = address
+        self.buffer = bytearray(128 * 64 // 8)
+        self.frame = framebuf.FrameBuffer(self.buffer, 128, 64,
+                                          framebuf.MONO_VLSB)
+        for command in (0xAE, 0x20, 0x00, 0x40, 0xA1, 0xC8, 0x81, 0x7F,
+                        0xA6, 0xA8, 0x3F, 0xD3, 0x00, 0xD5, 0x80, 0xD9,
+                        0xF1, 0xDA, 0x12, 0xDB, 0x40, 0x8D, 0x14, 0xAF):
+            self.command(command)
+
+    def command(self, value):
+        self.i2c.writeto(self.address, bytes((0x00, value)))
+
+    def show(self):
+        self.command(0x21)
+        self.command(0)
+        self.command(127)
+        self.command(0x22)
+        self.command(0)
+        self.command(7)
+        self.i2c.writeto(self.address, b&#39;\x40&#39; + self.buffer)
+
+
+def text_scaled(display, scratch, value, x, y, scale=2):
+    &quot;&quot;&quot;把 8x8 内置字体逐像素放大，避免依赖外部字体文件。&quot;&quot;&quot;
+    font = framebuf.FrameBuffer(scratch, 8, 8, framebuf.MONO_VLSB)
+    for char in value:
+        font.fill(0)
+        font.text(char, 0, 0, 1)
+        for row in range(8):
+            for column in range(8):
+                if font.pixel(column, row):
+                    display.frame.fill_rect(x + column * scale,
+                                            y + row * scale,
+                                            scale, scale, 1)
+        x += 8 * scale
+
+
+def main():
+    i2c = I2C(0, scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN), freq=400000)
+    devices = i2c.scan()
+    print(&#39;I2C devices:&#39;, [hex(device) for device in devices])
+    if OLED_ADDRESS not in devices:
+        raise OSError(&#39;SSD1306 not found at 0x%02X; check wiring/address&#39; % OLED_ADDRESS)
+    display = SSD1306(i2c, OLED_ADDRESS)
+    scratch = bytearray(8)
+    sensor = dht.DHT11(Pin(SENSOR_PIN))
+    last_sample = time.ticks_ms() - SAMPLE_INTERVAL_MS
+    temperature = None
+    humidity = None
+    error = &#39;等待传感器采样&#39;
+
+    while True:
+        now = time.ticks_ms()
+        if time.ticks_diff(now, last_sample) &gt;= SAMPLE_INTERVAL_MS:
+            try:
+                sensor.measure()
+                temperature = sensor.temperature()
+                humidity = sensor.humidity()
+                error = &#39;&#39;
+                print(&#39;Temperature: %s C, humidity: %s %%RH&#39;
+                      % (temperature, humidity))
+            except OSError as exc:
+                error = &#39;DHT11 读取失败&#39;
+                print(error, exc)
+            last_sample = time.ticks_ms()
+
+        display.frame.fill(0)
+        display.frame.text(&#39;TEMP / HUMIDITY&#39;, 0, 0, 1)
+        display.frame.hline(0, 10, 128, 1)
+        text_scaled(display, scratch,
+                    &#39;T: %sC&#39; % (temperature if temperature is not None else &#39;--&#39;),
+                    0, 14)
+        text_scaled(display, scratch,
+                    &#39;H: %s%%&#39; % (humidity if humidity is not None else &#39;--&#39;),
+                    0, 34)
+        display.frame.text(error[:21], 0, 56, 1)
+        display.show()
+        time.sleep_ms(250)
+
+
+if __name__ == &#39;__main__&#39;:
+    main()</code></pre></section>
+<section id="deploy"><h2>上传并运行</h2><ol><li>按表格接好模块并共地。</li><li>查看串口：<code>python scripts/device.py ports</code>。</li><li>执行 <code>python scripts/device.py deploy 05 --port 实际串口 --repl</code>。</li><li>OLED 显示温度和湿度，串口输出 I²C 地址及采样值。</li></ol><p>部署会替换开发板上的 <code>main.py</code>；切换案例时重新部署对应编号。</p></section>
+<section id="verify"><h2>验收与排错</h2><ul class="checklist"><li><label><input type="checkbox">OLED 显示温度 °C 和湿度 %。</label></li><li><label><input type="checkbox">读数约每 2.5 秒更新。</label></li><li><label><input type="checkbox">串口扫描能看到 OLED 地址。</label></li></ul><p>找不到屏幕时检查 SCL/SDA、供电、共地和 I²C 地址。亮屏无字时确认控制器与分辨率。DHT11 失败时检查 DATA 上拉和接线。</p><p class="note">因屏幕具体型号未注明，本案例按 SSD1306 128×64 编写，显示效果需在对应模块上确认。</p></section>
+<nav class="pager" aria-label="章节导航"><a href="../04-temperature-humidity/index.html">← 案例 04：网页温湿度</a><a href="../../projects/index.html">查看实战项目 →</a></nav></article></main></div><footer class="footer"><span>个人学习记录 · MicroPython 实践</span><span>案例 05 · DHT11 + OLED</span></footer></body></html>

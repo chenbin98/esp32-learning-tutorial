@@ -1,0 +1,5 @@
+{
+  "title": "OLED 显示 DHT11 温湿度",
+  "files": {"main.py": "main.py"},
+  "config": {}
+}

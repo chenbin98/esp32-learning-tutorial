@@ -7,15 +7,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def public_files(root=ROOT):
     exact = ['index.html', 'README.md', '.gitignore', 'requirements.txt',
-             'config/README.md', 'firmware/README.md']
+             'config/README.md', 'config/project_02_config.example.py', 'firmware/README.md']
     paths = {root / name for name in exact}
     for pattern in ('docs/*.html', 'docs/*.md', 'docs/assets/*.css', 'docs/assets/*.js',
                     'examples/*/index.html', 'examples/*/main.py', 'examples/*/case.json',
                     'examples/*/*.example.py', 'projects/index.html', 'projects/*/index.html',
-                    'projects/*/main.py', 'projects/*/project.json', 'scripts/*.py', 'tests/*.py',
+                    'projects/*/*.py', 'projects/*/main.py', 'projects/*/project.json', 'projects/*/requirements.txt',
+                    'projects/*/**/*.py', 'projects/*/templates/*.html', 'projects/*/*.conf.example',
+                    'scripts/*.py', 'tests/*.py',
                     'templates/case/*.html', 'templates/case/*.py', 'templates/case/*.json'):
         paths.update(root.glob(pattern))
-    return sorted(p for p in paths if p.is_file() and not p.is_symlink())
+    return sorted(p for p in paths if p.is_file() and not p.is_symlink()
+                  and '.venv' not in p.parts and '__pycache__' not in p.parts)
 
 
 def main():

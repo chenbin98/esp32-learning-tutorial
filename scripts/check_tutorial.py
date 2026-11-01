@@ -2,6 +2,7 @@
 from html.parser import HTMLParser
 from pathlib import Path
 import ast
+import json
 import sys
 from urllib.parse import unquote, urlsplit
 from package_tutorial import ROOT, public_files
@@ -54,6 +55,9 @@ def check():
     projects = ROOT / 'projects'
     for folder in sorted(path for path in projects.iterdir()
                          if path.is_dir() and (path / 'project.json').is_file()):
+        manifest = json.loads((folder / 'project.json').read_text(encoding='utf-8'))
+        if manifest.get('embed_main', True) is False:
+            continue
         source = (folder / 'main.py').read_text(encoding='utf-8').strip()
         page = pages.get((folder / 'index.html').resolve())
         if page is None or source not in page.codes:

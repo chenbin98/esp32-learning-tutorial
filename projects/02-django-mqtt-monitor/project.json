@@ -1,0 +1,10 @@
+{
+  "id": "project-02",
+  "title": "温湿度监测与历史曲线",
+  "embed_main": false,
+  "files": {"main.py": "main.py"},
+  "config": {
+    "wifi_config.py": "wifi_config.py",
+    "project_02_config.py": "project_config.py"
+  }
+}

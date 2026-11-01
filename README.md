@@ -12,8 +12,9 @@
 4. [案例 03：手机 BLE 控制 LED](examples/03-bluetooth-led/index.html)：手机通过 BLE GATT 写入开关指令。
 5. [案例 04：网页温湿度监测](examples/04-temperature-humidity/index.html)：DHT11 接入 D2/GPIO2，网页自动显示温湿度。
 6. [案例 05：OLED 显示温湿度](examples/05-temperature-humidity-oled/index.html)：DHT11 接入 D2，SSD1306 OLED 使用 D18/D19 的 I²C。
-7. [实战项目：温湿度报警系统](projects/01-temperature-humidity-alarm/index.html)：组合案例 04 的 DHT11 网页监测和 D23 LED 报警。
-8. [记录新案例](docs/contributing.html)：模板、记录规范与分享方法。
+7. [实战项目 01：温湿度报警系统](projects/01-temperature-humidity-alarm/index.html)：组合案例 04 的 DHT11 网页监测和 D23 LED 报警。
+8. [实战项目 02：温湿度监测与历史曲线](projects/02-django-mqtt-monitor/index.html)：组合案例 04/05 和项目 01，以 MQTT、Django、SQLite 保存历史并显示曲线。
+9. [记录新案例](docs/contributing.html)：模板、记录规范与分享方法。
 
 实测起点：macOS、Python 3.12.2、ESP32-D0WD-V3 / 4 MB Flash、MicroPython 1.29.0。其他板型先核对引脚与固件。Windows / Linux 操作差异已写入环境教程，尚未实机验证。
 
@@ -30,6 +31,7 @@ examples/
 projects/
   index.html                         实战项目栏目入口
   01-temperature-humidity-alarm/     独立项目脚本 + 教程 + project.json
+  02-django-mqtt-monitor/             MQTT 设备程序 + Django/SQLite 后台和曲线网页
 config/wifi_config.py               私人 Wi-Fi 配置，不分享
 scripts/device.py                  电脑端串口 / 上传工具
 scripts/check_tutorial.py           文档链接与公开文件检查
@@ -82,6 +84,12 @@ python scripts/device.py deploy project-01 --port /dev/cu.usbserial-0001 --repl
 ```
 
 从 [实战项目目录](projects/index.html) 查看接线、阈值和网页使用说明。
+
+实战项目 02 需要电脑端 MQTT Broker 和 Django 后台；详细配置与运行步骤见[项目 02 教程](projects/02-django-mqtt-monitor/index.html)。设备部署命令：
+
+```bash
+python scripts/device.py deploy project-02 --port COM3 --repl
+```
 `--dry-run` 只检查文件和显示上传路径，不连接设备。
 
 上传工具会中断板上当前程序，备份将被替换的同名文件，上传临时文件并核对 SHA-256，全部通过后替换文件、重启。选择案例会替换板上的 `main.py`；它不删除其他文件，也不擦除固件。多文件替换不是断电原子事务，异常时应修正问题并重新部署，不能把中途失败当作完成。

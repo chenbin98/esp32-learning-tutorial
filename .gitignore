@@ -3,6 +3,8 @@ __pycache__/
 backups/
 
 wifi_config.py
+project_02_config.py
+*.sqlite3
 dist/
 *.bin
 .DS_Store

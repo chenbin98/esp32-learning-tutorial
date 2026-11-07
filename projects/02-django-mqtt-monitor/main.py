@@ -1,16 +1,18 @@
-"""Project 02: DHT11 + SSD1315 OLED + MQTT telemetry and GPIO4 alarm LED."""
+"""Project 02: DHT11 + SSD1315 OLED + MQTT and GPIO4/15 alarms."""
 import dht
 import framebuf
 import network
 import socket
 import time
 import ujson
-from machine import I2C, Pin
+from machine import I2C, Pin, PWM
 from project_config import MQTT_HOST, MQTT_PORT, DEVICE_ID
 from wifi_config import WIFI_SSID, WIFI_PASSWORD
 
 SENSOR_PIN = 2
 LED_PIN = 4                         # D4 / GPIO4 on the user's board
+BUZZER_PIN = 15                     # D15 / GPIO15; passive buzzer via PWM
+BUTTON_PIN = 21                     # D21 / GPIO21; switch connects to 3.3 V
 I2C_SCL_PIN = 18
 I2C_SDA_PIN = 19
 OLED_ADDRESS = 0x3C
@@ -19,6 +21,10 @@ HUMIDITY_THRESHOLD_RH = 60
 SAMPLE_INTERVAL_MS = 2500
 LED_ON_LEVEL = 1
 LED_OFF_LEVEL = 0
+BUZZER_FREQUENCY_HZ = 2000
+BUZZER_DUTY_U16 = 32768
+BUZZER_ON_MS = 250
+BUZZER_OFF_MS = 250
 ROOT_TOPIC = 'esp32/%s' % DEVICE_ID
 
 
@@ -184,6 +190,10 @@ def main():
     font_scratch = bytearray(8)
     sensor = dht.DHT11(Pin(SENSOR_PIN))
     led = Pin(LED_PIN, Pin.OUT, value=LED_OFF_LEVEL)
+    buzzer = PWM(Pin(BUZZER_PIN))
+    buzzer.freq(BUZZER_FREQUENCY_HZ)
+    buzzer.duty_u16(0)
+    button = Pin(BUTTON_PIN, Pin.IN, Pin.PULL_DOWN)
     wlan = start_wifi()
     client = MQTT()
     mode = 'auto'
@@ -191,11 +201,16 @@ def main():
     temperature = humidity = None
     sensor_ok = False
     alarm = False
+    buzzer_silenced = False
+    button_was_pressed = False
+    buzzer_phase_on = False
+    buzzer_phase_started = time.ticks_ms()
     error = 'Waiting for first reading'
     last_sample = time.ticks_ms() - SAMPLE_INTERVAL_MS
     last_wifi_attempt = time.ticks_ms()
     last_mqtt_attempt = time.ticks_ms() - 5000
-    print('MQTT broker:', MQTT_HOST, 'device:', DEVICE_ID, 'LED: GPIO4')
+    print('MQTT broker:', MQTT_HOST, 'device:', DEVICE_ID,
+          'LED: GPIO4, buzzer: GPIO15, mute button: GPIO21')
 
     while True:
         now = time.ticks_ms()
@@ -212,6 +227,8 @@ def main():
                 print(error, exc)
             if sensor_ok:
                 alarm = temperature > TEMP_THRESHOLD_C and humidity > HUMIDITY_THRESHOLD_RH
+                if not alarm:
+                    buzzer_silenced = False
             if mode == 'auto' and sensor_ok:
                 led.value(LED_ON_LEVEL if alarm else LED_OFF_LEVEL)
             last_sample = time.ticks_ms()
@@ -271,6 +288,20 @@ def main():
             except (OSError, ValueError, KeyError) as exc:
                 print('MQTT command error:', exc)
                 client.close()
+        button_pressed = button.value() == 1
+        if button_pressed and not button_was_pressed and alarm:
+            buzzer_silenced = True
+        button_was_pressed = button_pressed
+        if alarm and led.value() == LED_ON_LEVEL and not buzzer_silenced:
+            phase_duration = BUZZER_ON_MS if buzzer_phase_on else BUZZER_OFF_MS
+            if time.ticks_diff(now, buzzer_phase_started) >= phase_duration:
+                buzzer_phase_on = not buzzer_phase_on
+                buzzer_phase_started = now
+            buzzer.duty_u16(BUZZER_DUTY_U16 if buzzer_phase_on else 0)
+        else:
+            buzzer.duty_u16(0)
+            buzzer_phase_on = False
+            buzzer_phase_started = now
         frame = oled.frame
         frame.fill(0)
         frame.text('TEMP', 16, 1, 1)
